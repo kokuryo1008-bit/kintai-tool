@@ -632,6 +632,126 @@ def admin_reject_trip(trip_id: int, user=Depends(get_current_user)):
     return {"ok": True}
 
 
+# ── シフト（従業員） ──────────────────────────────────────────────────────────
+
+@app.get("/api/shifts/today")
+def shift_today(user=Depends(get_current_user)):
+    today = date.today().isoformat()
+    conn = get_conn()
+    row = conn.execute(
+        "SELECT start_time, end_time, note FROM shifts WHERE user_id=? AND shift_date=?",
+        (user["id"], today),
+    ).fetchone()
+    conn.close()
+    return dict(row) if row else {}
+
+@app.get("/api/shifts/mine")
+def shift_mine(year: int = None, month: int = None, user=Depends(get_current_user)):
+    today = date.today()
+    y = year or today.year
+    m = month or today.month
+    conn = get_conn()
+    rows = conn.execute(
+        "SELECT shift_date, start_time, end_time, note FROM shifts WHERE user_id=? AND strftime('%Y-%m', shift_date)=? ORDER BY shift_date",
+        (user["id"], f"{y:04d}-{m:02d}"),
+    ).fetchall()
+    conn.close()
+    return {"shifts": [dict(r) for r in rows]}
+
+
+# ── シフト（管理者） ──────────────────────────────────────────────────────────
+
+class ShiftReq(BaseModel):
+    employee_id: str
+    shift_date: str
+    start_time: str
+    end_time: str
+    note: Optional[str] = None
+
+class TemplateReq(BaseModel):
+    name: str
+    start_time: str
+    end_time: str
+
+@app.get("/api/admin/shifts")
+def admin_get_shifts(year: int = None, month: int = None, department_id: int = None, user=Depends(get_current_user)):
+    require_admin(user)
+    today = date.today()
+    y = year or today.year
+    m = month or today.month
+    conn = get_conn()
+    q = """
+        SELECT s.id, s.user_id, u.name, u.employee_id, d.name as department,
+               s.shift_date, s.start_time, s.end_time, s.note
+        FROM shifts s
+        JOIN users u ON s.user_id=u.id
+        LEFT JOIN departments d ON u.department_id=d.id
+        WHERE strftime('%Y-%m', s.shift_date)=?
+    """
+    params = [f"{y:04d}-{m:02d}"]
+    if department_id:
+        q += " AND u.department_id=?"
+        params.append(department_id)
+    q += " ORDER BY s.shift_date, d.name, u.employee_id"
+    rows = conn.execute(q, params).fetchall()
+    conn.close()
+    return {"shifts": [dict(r) for r in rows]}
+
+@app.post("/api/admin/shifts")
+def admin_set_shift(req: ShiftReq, user=Depends(get_current_user)):
+    require_admin(user)
+    conn = get_conn()
+    target = conn.execute("SELECT id FROM users WHERE employee_id=? AND is_active=1", (req.employee_id,)).fetchone()
+    if not target:
+        conn.close()
+        raise HTTPException(status_code=404, detail="従業員が見つかりません。")
+    conn.execute("""
+        INSERT INTO shifts (user_id, shift_date, start_time, end_time, note, created_by)
+        VALUES (?,?,?,?,?,?)
+        ON CONFLICT(user_id, shift_date) DO UPDATE SET
+            start_time=excluded.start_time, end_time=excluded.end_time,
+            note=excluded.note, created_by=excluded.created_by
+    """, (target["id"], req.shift_date, req.start_time, req.end_time, req.note, user["id"]))
+    conn.commit()
+    conn.close()
+    return {"ok": True}
+
+@app.delete("/api/admin/shifts/{shift_id}")
+def admin_delete_shift(shift_id: int, user=Depends(get_current_user)):
+    require_admin(user)
+    conn = get_conn()
+    conn.execute("DELETE FROM shifts WHERE id=?", (shift_id,))
+    conn.commit()
+    conn.close()
+    return {"ok": True}
+
+@app.get("/api/admin/shift-templates")
+def get_templates(user=Depends(get_current_user)):
+    conn = get_conn()
+    rows = conn.execute("SELECT * FROM shift_templates ORDER BY id").fetchall()
+    conn.close()
+    return {"templates": [dict(r) for r in rows]}
+
+@app.post("/api/admin/shift-templates")
+def create_template(req: TemplateReq, user=Depends(get_current_user)):
+    require_admin(user)
+    conn = get_conn()
+    conn.execute("INSERT INTO shift_templates (name, start_time, end_time) VALUES (?,?,?)",
+                 (req.name, req.start_time, req.end_time))
+    conn.commit()
+    conn.close()
+    return {"ok": True}
+
+@app.delete("/api/admin/shift-templates/{tmpl_id}")
+def delete_template(tmpl_id: int, user=Depends(get_current_user)):
+    require_admin(user)
+    conn = get_conn()
+    conn.execute("DELETE FROM shift_templates WHERE id=?", (tmpl_id,))
+    conn.commit()
+    conn.close()
+    return {"ok": True}
+
+
 @app.get("/api/health")
 def health():
     return {"status": "ok"}

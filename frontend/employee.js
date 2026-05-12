@@ -55,6 +55,21 @@ function getGPS() {
   });
 }
 
+// ── 今日のシフト ──
+async function loadTodayShift() {
+  try {
+    const res = await api('/api/shifts/today');
+    const d = await res.json();
+    const el = document.getElementById('today-shift');
+    if (d.start_time) {
+      el.textContent = `📅 本日のシフト: ${d.start_time.slice(0,5)} 〜 ${d.end_time.slice(0,5)}`;
+    } else {
+      el.textContent = '';
+    }
+  } catch(e) {}
+}
+loadTodayShift();
+
 // ── 今日の状態読み込み ──
 async function loadTodayStatus() {
   try {

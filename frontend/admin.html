@@ -23,6 +23,7 @@
       <div class="sidebar-item" onclick="showSection('attendance')" id="nav-attendance">📋 勤怠一覧</div>
       <div class="sidebar-item" onclick="showSection('leave')" id="nav-leave">🏖️ 有給申請</div>
       <div class="sidebar-item" onclick="showSection('trip')" id="nav-trip">✈️ 出張申請</div>
+      <div class="sidebar-item" onclick="showSection('shifts')" id="nav-shifts">📅 シフト管理</div>
       <div class="sidebar-item" onclick="showSection('settings')" id="nav-settings">⚙️ 設定</div>
     </div>
 
@@ -109,6 +110,42 @@
             <button class="btn-outline btn-sm" onclick="filterTrip('all')" id="tf-all">全て</button>
           </div>
           <div id="trip-list"></div>
+        </div>
+      </div>
+
+      <!-- シフト管理 -->
+      <div id="section-shifts" class="hidden">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:12px">
+          <h2 style="font-size:1.2rem;font-weight:800;color:var(--primary)">シフト管理</h2>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <select id="shift-year" style="width:auto"></select>
+            <select id="shift-month" style="width:auto"></select>
+            <select id="shift-dept-filter" style="width:auto"><option value="">全部署</option></select>
+            <button class="btn-outline btn-sm" onclick="loadShifts()">表示</button>
+          </div>
+        </div>
+
+        <!-- テンプレート管理 -->
+        <div class="card" style="margin-bottom:16px">
+          <div class="card-title">⏰ シフトテンプレート</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin-bottom:12px">
+            <div class="form-group" style="margin:0;flex:2;min-width:100px"><label>名前</label><input type="text" id="tmpl-name" placeholder="例: 日勤"></div>
+            <div class="form-group" style="margin:0;flex:1;min-width:90px"><label>開始</label><input type="time" id="tmpl-start" value="09:00"></div>
+            <div class="form-group" style="margin:0;flex:1;min-width:90px"><label>終了</label><input type="time" id="tmpl-end" value="18:00"></div>
+            <button class="btn-outline btn-sm" onclick="addTemplate()">追加</button>
+          </div>
+          <div id="tmpl-list" style="display:flex;gap:8px;flex-wrap:wrap"></div>
+        </div>
+
+        <!-- シフト表 -->
+        <div class="card">
+          <div class="card-title">📋 シフト表</div>
+          <div style="overflow-x:auto">
+            <table id="shift-table" style="min-width:600px">
+              <thead id="shift-thead"></thead>
+              <tbody id="shift-tbody"></tbody>
+            </table>
+          </div>
         </div>
       </div>
 
