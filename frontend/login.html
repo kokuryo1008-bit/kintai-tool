@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ログイン | 勤怠管理システム</title>
+  <link rel="stylesheet" href="/static/common.css">
+</head>
+<body class="login-body">
+  <div class="login-card">
+    <div class="login-logo">🕐</div>
+    <h1 class="login-title">勤怠管理システム</h1>
+    <p class="login-sub">社員IDとPINでログイン</p>
+    <div class="form-group">
+      <label>社員ID</label>
+      <input type="text" id="employee-id" placeholder="3桁の番号（例: 001）" autocomplete="username" inputmode="numeric" maxlength="10">
+    </div>
+    <div class="form-group">
+      <label>PIN</label>
+      <input type="password" id="password" placeholder="3桁のPIN" autocomplete="current-password" inputmode="numeric" maxlength="10">
+    </div>
+    <button class="btn-primary" onclick="login()">ログイン</button>
+    <div id="error-msg" class="error-msg hidden"></div>
+  </div>
+  <script>
+    async function login() {
+      const id = document.getElementById('employee-id').value.trim();
+      const pw = document.getElementById('password').value;
+      if (!id || !pw) { showError('社員IDとパスワードを入力してください。'); return; }
+      try {
+        const res = await fetch('/api/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ employee_id: id, password: pw })
+        });
+        const data = await res.json();
+        if (!res.ok) { showError(data.detail); return; }
+        localStorage.setItem('token', data.token);
+        localStorage.setItem('role', data.role);
+        localStorage.setItem('name', data.name);
+        location.href = data.role === 'employee' ? '/employee' : '/admin';
+      } catch (e) { showError('サーバーに接続できません。'); }
+    }
+    function showError(msg) {
+      const el = document.getElementById('error-msg');
+      el.textContent = msg;
+      el.classList.remove('hidden');
+    }
+    document.addEventListener('keydown', e => { if (e.key === 'Enter') login(); });
+  </script>
+</body>
+</html>

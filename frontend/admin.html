@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>勤怠管理 | 管理画面</title>
+  <link rel="stylesheet" href="/static/common.css">
+</head>
+<body>
+  <nav class="navbar">
+    <div class="navbar-brand">🕐 勤怠管理 <span style="font-size:0.75rem;opacity:.7;font-weight:400">管理画面</span></div>
+    <div class="navbar-user">
+      <span id="user-name"></span>
+      <button class="btn-logout" onclick="logout()">ログアウト</button>
+    </div>
+  </nav>
+
+  <div class="admin-layout">
+    <!-- サイドバー -->
+    <div class="sidebar">
+      <div class="sidebar-item active" onclick="showSection('dashboard')" id="nav-dashboard">📊 ダッシュボード</div>
+      <div class="sidebar-item" onclick="showSection('employees')" id="nav-employees">👥 従業員管理</div>
+      <div class="sidebar-item" onclick="showSection('attendance')" id="nav-attendance">📋 勤怠一覧</div>
+      <div class="sidebar-item" onclick="showSection('leave')" id="nav-leave">🏖️ 有給申請</div>
+      <div class="sidebar-item" onclick="showSection('trip')" id="nav-trip">✈️ 出張申請</div>
+      <div class="sidebar-item" onclick="showSection('settings')" id="nav-settings">⚙️ 設定</div>
+    </div>
+
+    <!-- メインコンテンツ -->
+    <div class="admin-content">
+
+      <!-- ダッシュボード -->
+      <div id="section-dashboard">
+        <h2 style="font-size:1.2rem;font-weight:800;color:var(--primary);margin-bottom:20px">ダッシュボード</h2>
+        <div class="stats-grid" id="stats-grid"></div>
+        <div class="card">
+          <div class="card-title">📋 本日の出勤状況</div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>氏名</th><th>部署</th><th>出勤</th><th>退勤</th><th>状態</th></tr></thead>
+              <tbody id="today-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- 従業員管理 -->
+      <div id="section-employees" class="hidden">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+          <h2 style="font-size:1.2rem;font-weight:800;color:var(--primary)">従業員管理</h2>
+          <button class="btn-primary" style="width:auto;padding:10px 20px" onclick="openEmpModal()">＋ 新規登録</button>
+        </div>
+        <div class="card">
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>社員ID</th><th>氏名</th><th>部署</th><th>役職</th><th>有給残</th><th>操作</th></tr></thead>
+              <tbody id="emp-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- 勤怠一覧 -->
+      <div id="section-attendance" class="hidden">
+        <h2 style="font-size:1.2rem;font-weight:800;color:var(--primary);margin-bottom:20px">勤怠一覧</h2>
+        <div class="card" style="margin-bottom:16px">
+          <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end">
+            <div class="form-group" style="margin:0;flex:1;min-width:120px">
+              <label>年</label><select id="att-year"></select>
+            </div>
+            <div class="form-group" style="margin:0;flex:1;min-width:100px">
+              <label>月</label><select id="att-month"></select>
+            </div>
+            <div class="form-group" style="margin:0;flex:2;min-width:150px">
+              <label>部署</label><select id="att-dept"><option value="">全部署</option></select>
+            </div>
+            <button class="btn-outline" onclick="loadAttendance()">表示</button>
+            <button class="btn-outline btn-sm" onclick="exportCSV()" style="margin-left:auto">CSV出力</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>日付</th><th>氏名</th><th>部署</th><th>出勤</th><th>退勤</th><th>勤務時間</th><th>残業</th></tr></thead>
+              <tbody id="att-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- 有給申請 -->
+      <div id="section-leave" class="hidden">
+        <h2 style="font-size:1.2rem;font-weight:800;color:var(--primary);margin-bottom:20px">有給申請管理</h2>
+        <div class="card">
+          <div style="display:flex;gap:8px;margin-bottom:16px">
+            <button class="btn-outline btn-sm" onclick="filterLeave('pending')" id="lf-pending" style="border-color:var(--warning);color:var(--warning)">申請中</button>
+            <button class="btn-outline btn-sm" onclick="filterLeave('all')" id="lf-all">全て</button>
+          </div>
+          <div id="leave-list"></div>
+        </div>
+      </div>
+
+      <!-- 出張申請 -->
+      <div id="section-trip" class="hidden">
+        <h2 style="font-size:1.2rem;font-weight:800;color:var(--primary);margin-bottom:20px">出張申請管理</h2>
+        <div class="card">
+          <div style="display:flex;gap:8px;margin-bottom:16px">
+            <button class="btn-outline btn-sm" onclick="filterTrip('pending')" id="tf-pending" style="border-color:var(--warning);color:var(--warning)">申請中</button>
+            <button class="btn-outline btn-sm" onclick="filterTrip('all')" id="tf-all">全て</button>
+          </div>
+          <div id="trip-list"></div>
+        </div>
+      </div>
+
+      <!-- 設定 -->
+      <div id="section-settings" class="hidden">
+        <h2 style="font-size:1.2rem;font-weight:800;color:var(--primary);margin-bottom:20px">システム設定</h2>
+        <div class="card" style="margin-bottom:16px">
+          <div class="card-title">🏢 会社・GPS設定</div>
+          <div class="form-group"><label>会社名</label><input type="text" id="set-company-name"></div>
+          <div class="form-group"><label>緯度（本社）</label><input type="number" id="set-lat" step="0.000001" placeholder="例: 34.702485"></div>
+          <div class="form-group"><label>経度（本社）</label><input type="number" id="set-lon" step="0.000001" placeholder="例: 135.495951"></div>
+          <div class="form-group"><label>GPS許容半径（メートル）</label><input type="number" id="set-radius" min="50" max="5000" placeholder="500"></div>
+          <button class="btn-primary" style="max-width:200px" onclick="saveCompanySettings()">保存</button>
+        </div>
+        <div class="card" style="margin-bottom:16px">
+          <div class="card-title">⏰ 勤務時間設定</div>
+          <div class="form-group"><label>所定労働時間（時間/日）</label><input type="number" id="set-work-hours" min="1" max="12" step="0.5" placeholder="8"></div>
+          <div class="form-group"><label>有給日数（初期付与）</label><input type="number" id="set-leave-days" min="0" max="40" step="0.5" placeholder="10"></div>
+          <button class="btn-primary" style="max-width:200px" onclick="saveWorkSettings()">保存</button>
+        </div>
+        <div class="card">
+          <div class="card-title">🏗️ 部署管理</div>
+          <div style="display:flex;gap:8px;margin-bottom:12px">
+            <input type="text" id="dept-name" placeholder="部署名を入力" style="flex:1">
+            <button class="btn-outline" onclick="addDept()">追加</button>
+          </div>
+          <div id="dept-list"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 従業員モーダル -->
+  <div id="emp-modal" class="modal-overlay hidden">
+    <div class="modal">
+      <div class="modal-title" id="emp-modal-title">従業員登録</div>
+      <div class="form-group">
+        <label>社員ID <span style="font-weight:400;color:var(--text-muted)">（3桁の数字）</span></label>
+        <input type="text" id="m-emp-id" placeholder="例: 001" maxlength="3" pattern="[0-9]{3}">
+      </div>
+      <div class="form-group"><label>氏名</label><input type="text" id="m-emp-name"></div>
+      <div class="form-group"><label>部署</label><select id="m-emp-dept"></select></div>
+      <div class="form-group"><label>役職</label><input type="text" id="m-emp-role" placeholder="例: 営業担当"></div>
+      <div class="form-group"><label>権限</label>
+        <select id="m-emp-perm">
+          <option value="employee">従業員</option>
+          <option value="admin">管理者（事務）</option>
+        </select>
+      </div>
+      <div class="form-group"><label>有給残日数</label><input type="number" id="m-emp-leave" min="0" max="40" step="0.5" value="10"></div>
+      <!-- PIN表示（新規登録時のみ） -->
+      <div id="pin-display" class="hidden" style="background:#EFF6FF;border-radius:10px;padding:14px;margin-bottom:16px">
+        <div style="font-size:0.82rem;color:var(--text-muted);margin-bottom:6px">🔑 ログインPIN（従業員に口頭で伝えてください）</div>
+        <div style="display:flex;align-items:center;gap:12px">
+          <span id="pin-value" style="font-size:2rem;font-weight:800;letter-spacing:6px;color:var(--primary)"></span>
+          <button class="btn-outline btn-sm" onclick="regenPin()">再生成</button>
+        </div>
+        <div style="font-size:0.78rem;color:var(--text-muted);margin-top:6px">※ 画面を閉じるとPINは確認できなくなります</div>
+      </div>
+      <!-- PINリセット（編集時のみ） -->
+      <div id="pin-reset" class="hidden" style="margin-bottom:16px">
+        <button class="btn-outline btn-sm" onclick="resetPin()" style="color:var(--warning);border-color:var(--warning)">🔄 PINを再発行する</button>
+        <span id="pin-reset-value" style="margin-left:12px;font-size:1.2rem;font-weight:700;letter-spacing:4px;color:var(--primary)"></span>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-outline" onclick="closeEmpModal()">キャンセル</button>
+        <button class="btn-primary" style="width:auto;padding:10px 24px" onclick="saveEmployee()">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/static/admin.js"></script>
+</body>
+</html>
