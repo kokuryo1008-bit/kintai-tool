@@ -55,5 +55,11 @@ def get_current_user(authorization: str = Header(...)):
 
 
 def require_admin(user=None):
+    """admin または manager ならOK"""
     if user["role"] not in ("admin", "manager"):
         raise HTTPException(status_code=403, detail="管理者権限が必要です。")
+
+def require_super_admin(user=None):
+    """admin のみ（全社設定・部署管理など）"""
+    if user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="最高管理者権限が必要です。")

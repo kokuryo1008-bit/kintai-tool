@@ -38,6 +38,7 @@
         localStorage.setItem('token', data.token);
         localStorage.setItem('role', data.role);
         localStorage.setItem('name', data.name);
+        if (data.department_id) localStorage.setItem('department_id', data.department_id);
         location.href = data.role === 'employee' ? '/employee' : '/admin';
       } catch (e) { showError('サーバーに接続できません。'); }
     }

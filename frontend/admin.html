@@ -30,6 +30,22 @@
     <!-- メインコンテンツ -->
     <div class="admin-content">
 
+      <!-- 打刻ウィジェット（管理者・事業部管理者用） -->
+      <div id="clock-widget" class="hidden" style="background:var(--primary);color:white;border-radius:12px;padding:14px 20px;margin-bottom:20px;display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+        <div>
+          <div style="font-size:1.4rem;font-weight:800;letter-spacing:2px" id="w-time">--:--:--</div>
+          <div style="font-size:0.78rem;opacity:.8" id="w-status">読み込み中...</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;flex:1;min-width:200px">
+          <label style="display:inline-flex;align-items:center;gap:6px;font-size:0.8rem;opacity:.85;cursor:pointer">
+            <input type="checkbox" id="w-toggle-trip" onchange="wUpdateTripMode()" style="cursor:pointer">
+            ✈️ 出張中
+          </label>
+          <button class="btn-clock btn-clock-in" id="w-btn-in" onclick="wClockIn()" disabled style="padding:10px 18px;font-size:0.88rem;border-radius:8px">出勤</button>
+          <button class="btn-clock btn-clock-out" id="w-btn-out" onclick="wClockOut()" disabled style="padding:10px 18px;font-size:0.88rem;border-radius:8px">退勤</button>
+        </div>
+      </div>
+
       <!-- ダッシュボード -->
       <div id="section-dashboard">
         <h2 style="font-size:1.2rem;font-weight:800;color:var(--primary);margin-bottom:20px">ダッシュボード</h2>
@@ -192,7 +208,8 @@
       <div class="form-group"><label>権限</label>
         <select id="m-emp-perm">
           <option value="employee">従業員</option>
-          <option value="admin">管理者（事務）</option>
+          <option value="manager">事業部管理者</option>
+          <option value="admin" id="perm-admin-opt">管理者（事務・全社）</option>
         </select>
       </div>
       <div class="form-group"><label>有給残日数</label><input type="number" id="m-emp-leave" min="0" max="40" step="0.5" value="10"></div>

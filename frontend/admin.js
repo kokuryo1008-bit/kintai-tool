@@ -1,9 +1,29 @@
 const token = localStorage.getItem('token');
 const role = localStorage.getItem('role');
 const name = localStorage.getItem('name');
+const myDeptId = localStorage.getItem('department_id') ? parseInt(localStorage.getItem('department_id')) : null;
+const isManager = role === 'manager';
+const isSuperAdmin = role === 'admin';
+
 if (!token || role === 'employee') { localStorage.clear(); location.href = '/'; }
 
-document.getElementById('user-name').textContent = name || '';
+document.getElementById('user-name').textContent = (isManager ? '【事業部管理者】' : '') + (name || '');
+
+// manager は admin 権限オプションを非表示
+if (isManager) {
+  const adminOpt = document.getElementById('perm-admin-opt');
+  if (adminOpt) adminOpt.style.display = 'none';
+  // 設定・部署管理サイドバー非表示
+  const navSettings = document.getElementById('nav-settings');
+  if (navSettings) navSettings.style.display = 'none';
+}
+
+// 管理者・事業部管理者は打刻ウィジェット表示
+document.getElementById('clock-widget').classList.remove('hidden');
+setInterval(() => {
+  document.getElementById('w-time').textContent = new Date().toLocaleTimeString('ja-JP');
+}, 1000);
+wLoadTodayStatus();
 
 let allAttendance = [];
 let allLeave = [];
@@ -731,6 +751,62 @@ async function deleteShift(shiftId) {
   await api('/api/admin/shifts/' + shiftId, 'DELETE');
   document.getElementById('shift-edit-overlay').remove();
   loadShifts();
+}
+
+// ── 打刻ウィジェット ──────────────────────────────────────────────────────────
+
+async function wLoadTodayStatus() {
+  try {
+    const res = await api('/api/attendance/today');
+    const d = await res.json();
+    const btnIn = document.getElementById('w-btn-in');
+    const btnOut = document.getElementById('w-btn-out');
+    const status = document.getElementById('w-status');
+    if (!d.clock_in) {
+      status.textContent = '未出勤';
+      btnIn.disabled = false; btnOut.disabled = true;
+    } else if (!d.clock_out) {
+      status.textContent = `出勤中 🟢  ${d.clock_in.slice(0,5)}〜`;
+      btnIn.disabled = true; btnOut.disabled = false;
+    } else {
+      status.textContent = `退勤済 ✅  ${d.clock_in.slice(0,5)}〜${d.clock_out.slice(0,5)}`;
+      btnIn.disabled = true; btnOut.disabled = true;
+    }
+  } catch(e) {}
+}
+
+function wIsTrip() { return document.getElementById('w-toggle-trip').checked; }
+function wUpdateTripMode() { wLoadTodayStatus(); }
+
+async function wClockIn() {
+  const btn = document.getElementById('w-btn-in');
+  btn.disabled = true; btn.textContent = '処理中...';
+  const body = { location_type: wIsTrip() ? 'business_trip' : 'office' };
+  if (!wIsTrip()) {
+    const pos = await new Promise(resolve => {
+      if (!navigator.geolocation) { resolve(null); return; }
+      navigator.geolocation.getCurrentPosition(p => resolve({lat:p.coords.latitude,lon:p.coords.longitude}), () => resolve(null), {timeout:8000});
+    });
+    if (pos) { body.lat = pos.lat; body.lon = pos.lon; }
+  }
+  try {
+    const res = await api('/api/attendance/clock-in', 'POST', body);
+    const d = await res.json();
+    if (!res.ok) { alert(d.detail || 'エラー'); btn.disabled = false; btn.textContent = '出勤'; return; }
+    wLoadTodayStatus();
+  } catch(e) { alert('通信エラー'); btn.disabled = false; btn.textContent = '出勤'; }
+}
+
+async function wClockOut() {
+  const btn = document.getElementById('w-btn-out');
+  btn.disabled = true; btn.textContent = '処理中...';
+  const body = { location_type: wIsTrip() ? 'business_trip' : 'office' };
+  try {
+    const res = await api('/api/attendance/clock-out', 'POST', body);
+    const d = await res.json();
+    if (!res.ok) { alert(d.detail || 'エラー'); btn.disabled = false; btn.textContent = '退勤'; return; }
+    wLoadTodayStatus();
+  } catch(e) { alert('通信エラー'); btn.disabled = false; btn.textContent = '退勤'; }
 }
 
 // 初期ロード

@@ -14,7 +14,7 @@ from pydantic import BaseModel
 
 sys.path.insert(0, str(Path(__file__).parent))
 from auth import (create_token, get_current_user, hash_password,
-                  require_admin, verify_password)
+                  require_admin, require_super_admin, verify_password)
 from database import get_conn, init_db
 
 load_dotenv()
@@ -116,7 +116,7 @@ class LoginReq(BaseModel):
 def login(req: LoginReq):
     conn = get_conn()
     user = conn.execute(
-        "SELECT id, name, role, password_hash, pin_hash FROM users WHERE employee_id=? AND is_active=1",
+        "SELECT id, name, role, password_hash, pin_hash, department_id FROM users WHERE employee_id=? AND is_active=1",
         (req.employee_id,),
     ).fetchone()
     conn.close()
@@ -125,7 +125,17 @@ def login(req: LoginReq):
     ok = verify_password(req.password, user["password_hash"] or "") or verify_password(req.password, user["pin_hash"] or "")
     if not ok:
         raise HTTPException(status_code=401, detail="社員IDまたはパスワードが違います。")
-    return {"token": create_token(user["id"], user["role"]), "role": user["role"], "name": user["name"]}
+    return {
+        "token": create_token(user["id"], user["role"]),
+        "role": user["role"],
+        "name": user["name"],
+        "department_id": user["department_id"],
+    }
+
+
+def _dept_id(user) -> Optional[int]:
+    """manager は自部署のみ、admin は None（全部署）"""
+    return user.get("department_id") if user["role"] == "manager" else None
 
 
 # ── 会社設定 ──────────────────────────────────────────────────────────────────
@@ -157,7 +167,7 @@ def get_company_settings(user=Depends(get_current_user)):
 
 @app.put("/api/company/settings")
 def update_company_settings(req: CompanySettingsReq, user=Depends(get_current_user)):
-    require_admin(user)
+    require_super_admin(user)
     conn = get_conn()
     conn.execute("""
         UPDATE company SET
@@ -174,7 +184,7 @@ def update_company_settings(req: CompanySettingsReq, user=Depends(get_current_us
 
 @app.put("/api/company/work-settings")
 def update_work_settings(req: WorkSettingsReq, user=Depends(get_current_user)):
-    require_admin(user)
+    require_super_admin(user)
     conn = get_conn()
     conn.execute("""
         UPDATE company SET
@@ -202,7 +212,7 @@ def get_departments(user=Depends(get_current_user)):
 
 @app.post("/api/departments")
 def create_department(req: DeptReq, user=Depends(get_current_user)):
-    require_admin(user)
+    require_super_admin(user)
     name = req.name.strip()
     if not name:
         raise HTTPException(status_code=400, detail="部署名を入力してください。")
@@ -214,7 +224,7 @@ def create_department(req: DeptReq, user=Depends(get_current_user)):
 
 @app.delete("/api/departments/{dept_id}")
 def delete_department(dept_id: int, user=Depends(get_current_user)):
-    require_admin(user)
+    require_super_admin(user)
     conn = get_conn()
     conn.execute("DELETE FROM departments WHERE id=?", (dept_id,))
     conn.commit()
@@ -378,14 +388,21 @@ def request_trip(req: TripReq, user=Depends(get_current_user)):
 def admin_stats(user=Depends(get_current_user)):
     require_admin(user)
     today = date.today().isoformat()
+    dept = _dept_id(user)
     conn = get_conn()
-    total = conn.execute("SELECT COUNT(*) FROM users WHERE is_active=1 AND role='employee'").fetchone()[0]
+    dept_cond = "AND u.department_id=?" if dept else ""
+    dept_p = (dept,) if dept else ()
+    total = conn.execute(f"SELECT COUNT(*) FROM users u WHERE u.is_active=1 AND u.role='employee' {dept_cond}", dept_p).fetchone()[0]
     present = conn.execute(
-        "SELECT COUNT(*) FROM attendance a JOIN users u ON a.user_id=u.id WHERE a.work_date=? AND a.clock_in IS NOT NULL AND u.is_active=1",
-        (today,),
+        f"SELECT COUNT(*) FROM attendance a JOIN users u ON a.user_id=u.id WHERE a.work_date=? AND a.clock_in IS NOT NULL AND u.is_active=1 {dept_cond}",
+        (today,) + dept_p,
     ).fetchone()[0]
-    p_leave = conn.execute("SELECT COUNT(*) FROM leave_requests WHERE status='pending'").fetchone()[0]
-    p_trip = conn.execute("SELECT COUNT(*) FROM business_trips WHERE status='pending'").fetchone()[0]
+    p_leave = conn.execute(
+        f"SELECT COUNT(*) FROM leave_requests lr JOIN users u ON lr.user_id=u.id WHERE lr.status='pending' {dept_cond}", dept_p
+    ).fetchone()[0]
+    p_trip = conn.execute(
+        f"SELECT COUNT(*) FROM business_trips bt JOIN users u ON bt.user_id=u.id WHERE bt.status='pending' {dept_cond}", dept_p
+    ).fetchone()[0]
     conn.close()
     return {"total_employees": total, "today_present": present, "pending_leave": p_leave, "pending_trip": p_trip}
 
@@ -393,15 +410,21 @@ def admin_stats(user=Depends(get_current_user)):
 def admin_today(user=Depends(get_current_user)):
     require_admin(user)
     today = date.today().isoformat()
+    dept = _dept_id(user)
     conn = get_conn()
-    rows = conn.execute("""
+    q = """
         SELECT u.name, d.name as department, a.clock_in, a.clock_out
         FROM users u
         LEFT JOIN departments d ON u.department_id=d.id
         LEFT JOIN attendance a ON a.user_id=u.id AND a.work_date=?
         WHERE u.is_active=1 AND u.role='employee'
-        ORDER BY d.name, u.employee_id
-    """, (today,)).fetchall()
+    """
+    params = [today]
+    if dept:
+        q += " AND u.department_id=?"
+        params.append(dept)
+    q += " ORDER BY d.name, u.employee_id"
+    rows = conn.execute(q, params).fetchall()
     conn.close()
     return {"records": [dict(r) for r in rows]}
 
@@ -428,14 +451,20 @@ class EmpUpdate(BaseModel):
 @app.get("/api/admin/employees")
 def admin_list_employees(user=Depends(get_current_user)):
     require_admin(user)
+    dept = _dept_id(user)
     conn = get_conn()
-    rows = conn.execute("""
+    q = """
         SELECT u.employee_id, u.name, d.name as department, u.position,
                u.role, (u.annual_leave - COALESCE(u.used_leave,0)) as leave_remaining
         FROM users u LEFT JOIN departments d ON u.department_id=d.id
-        WHERE u.is_active=1 AND u.role != 'admin'
-        ORDER BY d.name, u.employee_id
-    """).fetchall()
+        WHERE u.is_active=1 AND u.role NOT IN ('admin')
+    """
+    params = []
+    if dept:
+        q += " AND u.department_id=?"
+        params.append(dept)
+    q += " ORDER BY d.name, u.employee_id"
+    rows = conn.execute(q, params).fetchall()
     conn.close()
     return {"employees": [dict(r) for r in rows]}
 
@@ -460,13 +489,18 @@ def admin_create_employee(req: EmpCreate, user=Depends(get_current_user)):
         raise HTTPException(status_code=400, detail="氏名を入力してください。")
     if not req.employee_id.strip():
         raise HTTPException(status_code=400, detail="社員IDを入力してください。")
+    # manager は自部署のみに登録可能
+    dept = _dept_id(user)
+    dept_id = dept if dept else req.department_id
+    # manager が admin を作れないよう制限
+    role = req.role if user["role"] == "admin" else ("employee" if req.role not in ("employee","manager") else req.role)
     pw_hash = hash_password(req.password) if req.password else hash_password("password")
     conn = get_conn()
     try:
         conn.execute("""
             INSERT INTO users (employee_id, name, role, department_id, position, password_hash, pin_hash, annual_leave, hire_date)
             VALUES (?,?,?,?,?,?,?,?,?)
-        """, (req.employee_id.strip(), req.name.strip(), req.role, req.department_id,
+        """, (req.employee_id.strip(), req.name.strip(), role, dept_id,
               req.position, pw_hash, pw_hash, req.leave_remaining, date.today().isoformat()))
         conn.commit()
     except Exception as e:
@@ -514,6 +548,7 @@ def admin_attendance(year: int = None, month: int = None, department_id: int = N
     today = date.today()
     y = year or today.year
     m = month or today.month
+    dept = _dept_id(user) or department_id
     conn = get_conn()
     q = """
         SELECT a.work_date as date, u.name, d.name as department,
@@ -524,9 +559,9 @@ def admin_attendance(year: int = None, month: int = None, department_id: int = N
         WHERE strftime('%Y-%m', a.work_date)=?
     """
     params = [f"{y:04d}-{m:02d}"]
-    if department_id:
+    if dept:
         q += " AND u.department_id=?"
-        params.append(department_id)
+        params.append(dept)
     q += " ORDER BY a.work_date DESC, d.name, u.employee_id"
     rows = conn.execute(q, params).fetchall()
     conn.close()
@@ -538,19 +573,25 @@ def admin_attendance(year: int = None, month: int = None, department_id: int = N
 @app.get("/api/admin/leave")
 def admin_leave_list(status: str = "", user=Depends(get_current_user)):
     require_admin(user)
+    dept = _dept_id(user)
     conn = get_conn()
-    q = """
+    conditions = []
+    params = []
+    if status:
+        conditions.append("lr.status=?")
+        params.append(status)
+    if dept:
+        conditions.append("u.department_id=?")
+        params.append(dept)
+    where = ("WHERE " + " AND ".join(conditions)) if conditions else ""
+    q = f"""
         SELECT lr.id, u.name, d.name as department,
                lr.start_date, lr.end_date, lr.days, lr.reason, lr.status, lr.created_at
         FROM leave_requests lr
         JOIN users u ON lr.user_id=u.id
         LEFT JOIN departments d ON u.department_id=d.id
+        {where} ORDER BY lr.created_at DESC
     """
-    params = []
-    if status:
-        q += " WHERE lr.status=?"
-        params.append(status)
-    q += " ORDER BY lr.created_at DESC"
     rows = conn.execute(q, params).fetchall()
     conn.close()
     return {"requests": [dict(r) for r in rows]}
@@ -590,19 +631,25 @@ def admin_reject_leave(req_id: int, user=Depends(get_current_user)):
 @app.get("/api/admin/trips")
 def admin_trip_list(status: str = "", user=Depends(get_current_user)):
     require_admin(user)
+    dept = _dept_id(user)
     conn = get_conn()
-    q = """
+    conditions = []
+    params = []
+    if status:
+        conditions.append("bt.status=?")
+        params.append(status)
+    if dept:
+        conditions.append("u.department_id=?")
+        params.append(dept)
+    where = ("WHERE " + " AND ".join(conditions)) if conditions else ""
+    q = f"""
         SELECT bt.id, u.name, d.name as department,
                bt.trip_date, bt.destination, bt.reason, bt.status, bt.created_at
         FROM business_trips bt
         JOIN users u ON bt.user_id=u.id
         LEFT JOIN departments d ON u.department_id=d.id
+        {where} ORDER BY bt.created_at DESC
     """
-    params = []
-    if status:
-        q += " WHERE bt.status=?"
-        params.append(status)
-    q += " ORDER BY bt.created_at DESC"
     rows = conn.execute(q, params).fetchall()
     conn.close()
     return {"requests": [dict(r) for r in rows]}
