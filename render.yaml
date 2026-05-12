@@ -7,7 +7,5 @@ services:
     envVars:
       - key: JWT_SECRET
         generateValue: true
-    disk:
-      name: kintai-data
-      mountPath: /opt/render/project/src/data
-      sizeGB: 1
+      - key: DATABASE_URL
+        sync: false
