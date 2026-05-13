@@ -1,6 +1,7 @@
 """勤怠管理ツール - バックエンド"""
 import math
 import sys
+from contextlib import asynccontextmanager
 from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Optional
@@ -19,17 +20,19 @@ from database import get_conn, init_db
 
 load_dotenv()
 
-app = FastAPI(title="勤怠管理システム", version="1.0.0")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    init_db()
+    _create_default_admin()
+    yield
+
+
+app = FastAPI(title="勤怠管理システム", version="1.0.0", lifespan=lifespan)
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
 FRONTEND_DIR = Path(__file__).parent.parent / "frontend"
 app.mount("/static", StaticFiles(directory=str(FRONTEND_DIR)), name="static")
-
-
-@app.on_event("startup")
-def startup():
-    init_db()
-    _create_default_admin()
 
 
 def _create_default_admin():
