@@ -35,8 +35,12 @@ updateClock();
 // ── GPS ──
 let currentPos = null;
 function getGPS() {
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
     if (!navigator.geolocation) { resolve(null); return; }
+    // HTTP環境ではGeolocation APIがブロックされるため静かにスキップ
+    if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
+      resolve(null); return;
+    }
     const warn = document.getElementById('gps-warning');
     warn.classList.remove('hidden');
     navigator.geolocation.getCurrentPosition(
@@ -45,12 +49,11 @@ function getGPS() {
         currentPos = { lat: pos.coords.latitude, lon: pos.coords.longitude };
         resolve(currentPos);
       },
-      err => {
-        warn.querySelector('div').textContent = '📍 GPS取得失敗';
-        warn.querySelector('div:last-child').textContent = err.message;
+      () => {
+        warn.classList.add('hidden');
         resolve(null);
       },
-      { timeout: 10000, enableHighAccuracy: true }
+      { timeout: 8000, enableHighAccuracy: true }
     );
   });
 }
