@@ -2,7 +2,10 @@
 import math
 import sys
 from contextlib import asynccontextmanager
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
+
+JST = ZoneInfo("Asia/Tokyo")
 from pathlib import Path
 from typing import Optional
 
@@ -41,7 +44,7 @@ def _create_default_admin():
     if not exists:
         conn.execute(
             "INSERT INTO users (employee_id,name,role,password_hash,pin_hash,hire_date) VALUES (?,?,?,?,?,?)",
-            ("admin", "管理者", "admin", hash_password("admin1234"), hash_password("0000"), date.today().isoformat()),
+            ("admin", "管理者", "admin", hash_password("admin1234"), hash_password("0000"), datetime.now(JST).date().isoformat()),
         )
         conn.commit()
         print("デフォルト管理者: ID=admin / PW=admin1234")
@@ -258,7 +261,7 @@ class ClockReq(BaseModel):
 
 @app.get("/api/attendance/today")
 def attendance_today(user=Depends(get_current_user)):
-    today = date.today().isoformat()
+    today = datetime.now(JST).date().isoformat()
     conn = get_conn()
     row = conn.execute(
         "SELECT clock_in, clock_out, work_minutes, overtime_minutes FROM attendance WHERE user_id=? AND work_date=?",
@@ -276,8 +279,9 @@ def attendance_today(user=Depends(get_current_user)):
 
 @app.post("/api/attendance/clock-in")
 def clock_in(req: ClockReq, user=Depends(get_current_user)):
-    today = date.today().isoformat()
-    now_time = datetime.now().strftime("%H:%M:%S")
+    now_jst = datetime.now(JST)
+    today = now_jst.date().isoformat()
+    now_time = now_jst.strftime("%H:%M:%S")
     conn = get_conn()
     _check_gps(req.lat, req.lon, conn, user["id"], today, req.location_type)
     existing = conn.execute(
@@ -297,8 +301,9 @@ def clock_in(req: ClockReq, user=Depends(get_current_user)):
 
 @app.post("/api/attendance/clock-out")
 def clock_out(req: ClockReq, user=Depends(get_current_user)):
-    today = date.today().isoformat()
-    now_time = datetime.now().strftime("%H:%M:%S")
+    now_jst = datetime.now(JST)
+    today = now_jst.date().isoformat()
+    now_time = now_jst.strftime("%H:%M:%S")
     conn = get_conn()
     row = conn.execute(
         "SELECT clock_in, clock_out FROM attendance WHERE user_id=? AND work_date=?", (user["id"], today)
@@ -320,7 +325,7 @@ def clock_out(req: ClockReq, user=Depends(get_current_user)):
 
 @app.get("/api/attendance/history")
 def attendance_history(year: int = None, month: int = None, user=Depends(get_current_user)):
-    today = date.today()
+    today = datetime.now(JST).date()
     y = year or today.year
     m = month or today.month
     conn = get_conn()
@@ -439,7 +444,7 @@ def request_trip(req: TripReq, user=Depends(get_current_user)):
 @app.get("/api/admin/stats")
 def admin_stats(user=Depends(get_current_user)):
     require_admin(user)
-    today = date.today().isoformat()
+    today = datetime.now(JST).date().isoformat()
     dept = _dept_id(user)
     conn = get_conn()
     dept_cond = "AND u.department_id=?" if dept else ""
@@ -461,7 +466,7 @@ def admin_stats(user=Depends(get_current_user)):
 @app.get("/api/admin/today")
 def admin_today(user=Depends(get_current_user)):
     require_admin(user)
-    today = date.today().isoformat()
+    today = datetime.now(JST).date().isoformat()
     dept = _dept_id(user)
     conn = get_conn()
     q = """
@@ -553,7 +558,7 @@ def admin_create_employee(req: EmpCreate, user=Depends(get_current_user)):
             INSERT INTO users (employee_id, name, role, department_id, position, password_hash, pin_hash, annual_leave, hire_date)
             VALUES (?,?,?,?,?,?,?,?,?)
         """, (req.employee_id.strip(), req.name.strip(), role, dept_id,
-              req.position, pw_hash, pw_hash, req.leave_remaining, date.today().isoformat()))
+              req.position, pw_hash, pw_hash, req.leave_remaining, datetime.now(JST).date().isoformat()))
         conn.commit()
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"登録エラー: {str(e)}")
@@ -597,7 +602,7 @@ def admin_delete_employee(emp_id: str, user=Depends(get_current_user)):
 @app.get("/api/admin/attendance")
 def admin_attendance(year: int = None, month: int = None, department_id: int = None, user=Depends(get_current_user)):
     require_admin(user)
-    today = date.today()
+    today = datetime.now(JST).date()
     y = year or today.year
     m = month or today.month
     dept = _dept_id(user) or department_id
@@ -735,7 +740,7 @@ def admin_reject_trip(trip_id: int, user=Depends(get_current_user)):
 
 @app.get("/api/shifts/today")
 def shift_today(user=Depends(get_current_user)):
-    today = date.today().isoformat()
+    today = datetime.now(JST).date().isoformat()
     conn = get_conn()
     row = conn.execute(
         "SELECT start_time, end_time, note FROM shifts WHERE user_id=? AND shift_date=?",
@@ -746,7 +751,7 @@ def shift_today(user=Depends(get_current_user)):
 
 @app.get("/api/shifts/mine")
 def shift_mine(year: int = None, month: int = None, user=Depends(get_current_user)):
-    today = date.today()
+    today = datetime.now(JST).date()
     y = year or today.year
     m = month or today.month
     conn = get_conn()
@@ -775,7 +780,7 @@ class TemplateReq(BaseModel):
 @app.get("/api/admin/shifts")
 def admin_get_shifts(year: int = None, month: int = None, department_id: int = None, user=Depends(get_current_user)):
     require_admin(user)
-    today = date.today()
+    today = datetime.now(JST).date()
     y = year or today.year
     m = month or today.month
     conn = get_conn()
@@ -886,7 +891,7 @@ def delete_template(tmpl_id: int, user=Depends(get_current_user)):
 @app.get("/api/admin/shifts/annual")
 def admin_get_annual_shifts(year: int = None, department_id: int = None, user=Depends(get_current_user)):
     require_admin(user)
-    y = year or date.today().year
+    y = year or datetime.now(JST).date().year
     dept = _dept_id(user) or department_id
     conn = get_conn()
     q = """
