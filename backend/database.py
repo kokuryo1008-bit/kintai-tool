@@ -85,6 +85,9 @@ class _PGConn:
             except Exception:
                 self._raw.rollback()
 
+    def rollback(self):
+        self._raw.rollback()
+
     def commit(self):
         self._raw.commit()
 
@@ -229,12 +232,15 @@ def init_db():
     conn.executescript(_SCHEMA)
     conn.commit()
 
-    # Migration: weekly_off_days column
+    # Migration: weekly_off_days column (column already exists → rollback to clear aborted tx)
     try:
         conn.execute("ALTER TABLE departments ADD COLUMN weekly_off_days TEXT DEFAULT ''")
         conn.commit()
     except Exception:
-        pass
+        try:
+            conn.rollback()
+        except Exception:
+            pass
 
     if not conn.execute("SELECT 1 FROM company WHERE id=1").fetchone():
         conn.execute("INSERT INTO company (id) VALUES (1)")
