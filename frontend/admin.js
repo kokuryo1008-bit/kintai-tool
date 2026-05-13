@@ -1168,18 +1168,18 @@ function renderMlCalendar(fy) {
     for (let d = 1; d <= daysInMonth; d++) {
       const dow = (firstDow + d - 1) % 7;
       const ds = `${yr}-${String(mo).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-      const isWkend = dow === 0 || dow === 6;
-      const isDeptOff = mlDeptOff.has(dow);
+      const isSun    = dow === 0;
+      const isSat    = dow === 6;
       const isNatHol = !!mlNatHols[ds];
-      const isNonWork = isWkend || isDeptOff || isNatHol;
-      const isSel = mlSelectedDates.has(ds);
-      if (isNonWork) {
-        const c = dow===0?'#FCA5A5':isNatHol?'#FCA5A5':'#93C5FD';
-        html += `<div style="text-align:center;font-size:0.6rem;color:${c};padding:1px" title="${isNatHol?mlNatHols[ds].name:''}">${d}</div>`;
+      const isSel    = mlSelectedDates.has(ds);
+      if (isNatHol) {
+        // 祝日のみ選択不可
+        html += `<div style="text-align:center;font-size:0.6rem;color:#FCA5A5;padding:1px" title="${mlNatHols[ds].name}">${d}</div>`;
       } else {
         const bg = isSel ? '#10B981' : '#fff';
-        const tc = isSel ? 'white' : 'var(--text)';
-        html += `<div onclick="toggleMlDate('${ds}',${fy})" style="text-align:center;font-size:0.62rem;background:${bg};color:${tc};border-radius:3px;padding:2px 1px;cursor:pointer;border:1px solid ${isSel?'#10B981':'#E2E8F0'}">${d}</div>`;
+        const tc = isSel ? 'white' : isSun ? '#E53E3E' : isSat ? '#3B82F6' : 'var(--text)';
+        const border = isSel ? '#10B981' : '#E2E8F0';
+        html += `<div onclick="toggleMlDate('${ds}',${fy})" style="text-align:center;font-size:0.62rem;background:${bg};color:${tc};border-radius:3px;padding:2px 1px;cursor:pointer;border:1px solid ${border}">${d}</div>`;
       }
     }
     html += '</div>';
