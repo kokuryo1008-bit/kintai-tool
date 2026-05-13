@@ -255,10 +255,45 @@ function renderAttendance() {
       <td>${r.clock_out ? r.clock_out.slice(0,5) : '--'}</td>
       <td>${r.work_minutes != null ? fmtMin(r.work_minutes) : '--'}</td>
       <td style="color:var(--warning)">${r.overtime_minutes ? fmtMin(r.overtime_minutes) : '--'}</td>
+      <td><button class="btn-outline btn-sm" onclick="openAttEdit(${r.id})">修正</button></td>
     `;
     tbody.appendChild(tr);
   });
-  if (!allAttendance.length) tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-muted)">データなし</td></tr>';
+  if (!allAttendance.length) tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text-muted)">データなし</td></tr>';
+}
+
+let editingAttId = null;
+
+function openAttEdit(id) {
+  const r = allAttendance.find(a => a.id === id);
+  if (!r) return;
+  editingAttId = id;
+  document.getElementById('att-edit-info').innerHTML =
+    `<strong>${r.name}</strong><span style="color:var(--text-muted);margin-left:8px">${r.department || ''}</span><br><span style="color:var(--text-muted)">${r.date}</span>`;
+  document.getElementById('att-edit-in').value = r.clock_in ? r.clock_in.slice(0, 5) : '';
+  document.getElementById('att-edit-out').value = r.clock_out ? r.clock_out.slice(0, 5) : '';
+  document.getElementById('att-edit-modal').classList.remove('hidden');
+}
+
+function closeAttEdit() {
+  document.getElementById('att-edit-modal').classList.add('hidden');
+  editingAttId = null;
+}
+
+async function saveAttEdit() {
+  const clockIn = document.getElementById('att-edit-in').value;
+  const clockOut = document.getElementById('att-edit-out').value;
+  if (!clockIn) { alert('出勤時刻を入力してください'); return; }
+  try {
+    const res = await api(`/api/admin/attendance/${editingAttId}`, 'PUT', {
+      clock_in: clockIn + ':00',
+      clock_out: clockOut ? clockOut + ':00' : null,
+    });
+    const d = await res.json();
+    if (!res.ok) { alert(d.detail || 'エラー'); return; }
+    closeAttEdit();
+    loadAttendance();
+  } catch(e) { alert('通信エラー'); }
 }
 
 function exportCSV() {

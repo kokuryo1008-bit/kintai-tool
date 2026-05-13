@@ -332,6 +332,41 @@ def attendance_history(year: int = None, month: int = None, user=Depends(get_cur
     return {"records": [dict(r) for r in rows]}
 
 
+# ── 勤怠修正（管理者） ───────────────────────────────────────────────────────
+
+class AttEditReq(BaseModel):
+    clock_in: str
+    clock_out: Optional[str] = None
+
+@app.put("/api/admin/attendance/{att_id}")
+def admin_edit_attendance(att_id: int, req: AttEditReq, user=Depends(get_current_user)):
+    require_admin(user)
+    conn = get_conn()
+    row = conn.execute(
+        "SELECT a.user_id, a.work_date, u.department_id FROM attendance a JOIN users u ON a.user_id=u.id WHERE a.id=?",
+        (att_id,),
+    ).fetchone()
+    if not row:
+        conn.close()
+        raise HTTPException(status_code=404, detail="記録が見つかりません。")
+    if user["role"] == "manager" and user.get("department_id") != row["department_id"]:
+        conn.close()
+        raise HTTPException(status_code=403, detail="自部署のみ修正できます。")
+    clock_in = req.clock_in or None
+    clock_out = req.clock_out or None
+    conn.execute(
+        "UPDATE attendance SET clock_in=?, clock_out=? WHERE id=?",
+        (clock_in, clock_out, att_id),
+    )
+    if clock_out:
+        _calc_hours(conn, row["user_id"], row["work_date"])
+    else:
+        conn.execute("UPDATE attendance SET work_minutes=0, overtime_minutes=0 WHERE id=?", (att_id,))
+    conn.commit()
+    conn.close()
+    return {"ok": True}
+
+
 # ── 有給申請（従業員） ────────────────────────────────────────────────────────
 
 class LeaveReq(BaseModel):
@@ -568,7 +603,7 @@ def admin_attendance(year: int = None, month: int = None, department_id: int = N
     dept = _dept_id(user) or department_id
     conn = get_conn()
     q = """
-        SELECT a.work_date as date, u.name, d.name as department,
+        SELECT a.id, a.work_date as date, u.name, d.name as department,
                a.clock_in, a.clock_out, a.work_minutes, a.overtime_minutes
         FROM attendance a
         JOIN users u ON a.user_id=u.id

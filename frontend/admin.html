@@ -98,7 +98,7 @@
         <div class="card">
           <div class="table-wrap">
             <table>
-              <thead><tr><th>日付</th><th>氏名</th><th>部署</th><th>出勤</th><th>退勤</th><th>勤務時間</th><th>残業</th></tr></thead>
+              <thead><tr><th>日付</th><th>氏名</th><th>部署</th><th>出勤</th><th>退勤</th><th>勤務時間</th><th>残業</th><th>操作</th></tr></thead>
               <tbody id="att-body"></tbody>
             </table>
           </div>
@@ -234,6 +234,26 @@
           </div>
           <div id="dept-list"></div>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 出退勤修正モーダル -->
+  <div id="att-edit-modal" class="modal-overlay hidden">
+    <div class="modal" style="max-width:360px">
+      <div class="modal-title">✏️ 出退勤時間の修正</div>
+      <div id="att-edit-info" style="background:#F8FAFC;border-radius:8px;padding:10px 14px;margin-bottom:18px;font-size:0.88rem"></div>
+      <div class="form-group">
+        <label>出勤時刻</label>
+        <input type="time" id="att-edit-in">
+      </div>
+      <div class="form-group">
+        <label>退勤時刻 <span style="font-weight:400;color:var(--text-muted)">（未退勤の場合は空欄）</span></label>
+        <input type="time" id="att-edit-out">
+      </div>
+      <div class="modal-footer">
+        <button class="btn-outline" onclick="closeAttEdit()">キャンセル</button>
+        <button class="btn-primary" style="width:auto;padding:10px 24px" onclick="saveAttEdit()">保存</button>
       </div>
     </div>
   </div>
