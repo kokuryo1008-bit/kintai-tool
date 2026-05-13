@@ -209,7 +209,7 @@ class DeptReq(BaseModel):
 @app.get("/api/departments")
 def get_departments(user=Depends(get_current_user)):
     conn = get_conn()
-    rows = conn.execute("SELECT id, name FROM departments ORDER BY id").fetchall()
+    rows = conn.execute("SELECT id, name, weekly_off_days FROM departments ORDER BY id").fetchall()
     conn.close()
     return {"departments": [dict(r) for r in rows]}
 
@@ -230,6 +230,20 @@ def delete_department(dept_id: int, user=Depends(get_current_user)):
     require_super_admin(user)
     conn = get_conn()
     conn.execute("DELETE FROM departments WHERE id=?", (dept_id,))
+    conn.commit()
+    conn.close()
+    return {"ok": True}
+
+class DeptHolidayReq(BaseModel):
+    weekly_off_days: str = ""
+
+@app.put("/api/departments/{dept_id}/holidays")
+def update_dept_holidays(dept_id: int, req: DeptHolidayReq, user=Depends(get_current_user)):
+    require_admin(user)
+    if user["role"] == "manager" and user.get("department_id") != dept_id:
+        raise HTTPException(status_code=403, detail="自部署のみ設定できます。")
+    conn = get_conn()
+    conn.execute("UPDATE departments SET weekly_off_days=? WHERE id=?", (req.weekly_off_days, dept_id))
     conn.commit()
     conn.close()
     return {"ok": True}
@@ -751,10 +765,13 @@ def admin_get_shifts(year: int = None, month: int = None, department_id: int = N
 def admin_set_shift(req: ShiftReq, user=Depends(get_current_user)):
     require_admin(user)
     conn = get_conn()
-    target = conn.execute("SELECT id FROM users WHERE employee_id=? AND is_active=1", (req.employee_id,)).fetchone()
+    target = conn.execute("SELECT id, department_id FROM users WHERE employee_id=? AND is_active=1", (req.employee_id,)).fetchone()
     if not target:
         conn.close()
         raise HTTPException(status_code=404, detail="従業員が見つかりません。")
+    if user["role"] == "manager" and user.get("department_id") != target["department_id"]:
+        conn.close()
+        raise HTTPException(status_code=403, detail="自部署の従業員のみシフト設定できます。")
     conn.execute("""
         INSERT INTO shifts (user_id, shift_date, start_time, end_time, note, created_by)
         VALUES (?,?,?,?,?,?)

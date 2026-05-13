@@ -140,7 +140,7 @@
         </div>
 
         <!-- テンプレート管理（共通） -->
-        <div class="card" style="margin-bottom:16px">
+        <div class="card" style="margin-bottom:12px">
           <div class="card-title">⏰ シフトテンプレート</div>
           <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin-bottom:12px">
             <div class="form-group" style="margin:0;flex:2;min-width:100px"><label>名前</label><input type="text" id="tmpl-name" placeholder="例: 日勤"></div>
@@ -149,6 +149,28 @@
             <button class="btn-outline btn-sm" onclick="addTemplate()">追加</button>
           </div>
           <div id="tmpl-list" style="display:flex;gap:8px;flex-wrap:wrap"></div>
+        </div>
+
+        <!-- 定休日設定 -->
+        <div class="card" style="margin-bottom:12px">
+          <div class="card-title">🏖️ 定休日設定</div>
+          <div id="holiday-dept-group" style="margin-bottom:12px">
+            <label style="display:block;font-size:0.82rem;font-weight:600;color:var(--text-muted);margin-bottom:6px">部署</label>
+            <select id="holiday-dept-sel" style="width:auto" onchange="loadHolidayCheckboxes()"></select>
+          </div>
+          <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:14px">
+            <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:0.88rem"><input type="checkbox" id="hol-0" value="0"> 日</label>
+            <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:0.88rem"><input type="checkbox" id="hol-1" value="1"> 月</label>
+            <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:0.88rem"><input type="checkbox" id="hol-2" value="2"> 火</label>
+            <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:0.88rem"><input type="checkbox" id="hol-3" value="3"> 水</label>
+            <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:0.88rem"><input type="checkbox" id="hol-4" value="4"> 木</label>
+            <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:0.88rem"><input type="checkbox" id="hol-5" value="5"> 金</label>
+            <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:0.88rem"><input type="checkbox" id="hol-6" value="6"> 土</label>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px">
+            <button class="btn-outline btn-sm" onclick="saveHolidays()">保存</button>
+            <span id="holiday-save-msg" style="font-size:0.82rem;color:var(--accent)"></span>
+          </div>
         </div>
 
         <!-- 月別表 -->

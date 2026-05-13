@@ -569,7 +569,28 @@ async function initShifts() {
   await Promise.all([
     loadDeptOptions('shift-dept-filter', true),
     loadDeptOptions('annual-dept', true),
+    loadDeptOptions('holiday-dept-sel', false),
+    loadAllDeptHolidays(),
   ]);
+
+  // 事業部長は自部署を固定
+  if (isManager && myDeptId) {
+    const annDept = document.getElementById('annual-dept');
+    annDept.value = myDeptId;
+    annDept.disabled = true;
+    document.getElementById('shift-dept-filter').value = myDeptId;
+    // 定休日セレクタを非表示にして自部署を自動セット
+    document.getElementById('holiday-dept-group').style.display = 'none';
+    loadHolidayCheckboxes(myDeptId);
+  } else {
+    // 管理者は最初の部署を選択状態にする
+    const hSel = document.getElementById('holiday-dept-sel');
+    if (hSel.options.length > 1) {
+      hSel.selectedIndex = 1;
+      loadHolidayCheckboxes();
+    }
+  }
+
   const annYearSel = document.getElementById('annual-year');
   if (!annYearSel.options.length) {
     const now = new Date();
@@ -580,6 +601,7 @@ async function initShifts() {
       annYearSel.appendChild(o);
     }
   }
+
   await Promise.all([loadTemplates(), loadShiftEmployees()]);
   loadShifts();
 }
@@ -824,6 +846,54 @@ async function wClockOut() {
   } catch(e) { alert('通信エラー'); btn.disabled = false; btn.textContent = '退勤'; }
 }
 
+// ── 定休日 ───────────────────────────────────────────────────────────────────
+
+let deptHolidayMap = {};
+
+async function loadAllDeptHolidays() {
+  try {
+    const res = await api('/api/departments');
+    const d = await res.json();
+    deptHolidayMap = {};
+    (d.departments || []).forEach(dept => {
+      deptHolidayMap[dept.id] = dept.weekly_off_days
+        ? dept.weekly_off_days.split(',').filter(Boolean).map(Number)
+        : [];
+    });
+  } catch(e) {}
+}
+
+function loadHolidayCheckboxes(forceDeptId) {
+  const deptId = forceDeptId || parseInt(document.getElementById('holiday-dept-sel').value);
+  const days = (deptId && deptHolidayMap[deptId]) ? deptHolidayMap[deptId] : [];
+  for (let i = 0; i <= 6; i++) {
+    const el = document.getElementById('hol-' + i);
+    if (el) el.checked = days.includes(i);
+  }
+}
+
+async function saveHolidays() {
+  const deptId = isManager ? myDeptId : parseInt(document.getElementById('holiday-dept-sel').value);
+  if (!deptId) { alert('部署を選択してください'); return; }
+  const days = [];
+  for (let i = 0; i <= 6; i++) {
+    const el = document.getElementById('hol-' + i);
+    if (el && el.checked) days.push(i);
+  }
+  try {
+    const res = await api(`/api/departments/${deptId}/holidays`, 'PUT', { weekly_off_days: days.join(',') });
+    if (!res.ok) { const d = await res.json(); alert(d.detail || 'エラー'); return; }
+    deptHolidayMap[deptId] = days;
+    const msg = document.getElementById('holiday-save-msg');
+    msg.textContent = '保存しました';
+    setTimeout(() => { msg.textContent = ''; }, 2000);
+    // カレンダー表示中なら再描画
+    if (!document.getElementById('shift-tab-annual').classList.contains('hidden')) {
+      renderAnnualCalendar(parseInt(document.getElementById('annual-year').value));
+    }
+  } catch(e) { alert('通信エラー'); }
+}
+
 // ── 年間カレンダー ────────────────────────────────────────────────────────────
 
 let annualShiftMap = {};
@@ -865,6 +935,8 @@ async function loadAnnualCalendar() {
 function renderAnnualCalendar(year) {
   const grid = document.getElementById('annual-calendar-grid');
   const today = new Date().toISOString().slice(0, 10);
+  const deptId = parseInt(document.getElementById('annual-dept').value) || null;
+  const holidays = deptId && deptHolidayMap[deptId] ? deptHolidayMap[deptId] : [];
   grid.innerHTML = '';
 
   for (let m = 1; m <= 12; m++) {
@@ -888,15 +960,25 @@ function renderAnnualCalendar(year) {
       const dateStr = `${year}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
       const isToday = dateStr === today;
       const isSun = dow === 0, isSat = dow === 6;
+      const isHoliday = holidays.includes(dow);
       const cnt = (annualShiftMap[dateStr] || []).length;
-      const bg = isToday ? '#DBEAFE' : isSun ? '#FFF0F0' : isSat ? '#F0F5FF' : 'transparent';
-      const nc = isSun ? 'var(--danger)' : isSat ? 'var(--primary-light)' : 'var(--text)';
+      const bg = isToday ? '#DBEAFE'
+        : isHoliday ? '#F1F5F9'
+        : isSun ? '#FFF0F0'
+        : isSat ? '#F0F5FF'
+        : 'transparent';
+      const nc = isHoliday ? 'var(--text-muted)'
+        : isSun ? 'var(--danger)'
+        : isSat ? 'var(--primary-light)'
+        : 'var(--text)';
 
-      html += `<div onclick="openDayPanel('${dateStr}')" title="${dateStr}" style="text-align:center;padding:2px 1px;border-radius:4px;cursor:pointer;background:${bg}">
-        <div style="color:${nc};font-weight:${isToday?700:400};font-size:0.72rem">${d}</div>
+      html += `<div onclick="openDayPanel('${dateStr}')" title="${dateStr}${isHoliday?' (定休日)':''}" style="text-align:center;padding:2px 1px;border-radius:4px;cursor:pointer;background:${bg}">
+        <div style="color:${nc};font-weight:${isToday?700:400};font-size:0.72rem;${isHoliday?'text-decoration:line-through':''}">${d}</div>
         ${cnt
           ? `<div style="background:var(--accent);color:white;border-radius:3px;font-size:0.6rem;font-weight:700;line-height:14px">${cnt}</div>`
-          : '<div style="height:14px"></div>'}
+          : isHoliday
+            ? `<div style="font-size:0.58rem;color:var(--text-muted);line-height:14px">休</div>`
+            : '<div style="height:14px"></div>'}
       </div>`;
     }
     html += '</div>';
