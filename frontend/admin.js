@@ -1079,6 +1079,176 @@ function closeDayAndEdit(empId, empName, shiftDate, startTime, endTime, shiftId)
 
 function escQ(str) { return str.replace(/'/g, "\\'"); }
 
+// ── 一括シフト登録 ────────────────────────────────────────────────────────────
+
+let bulkSelectedDates = new Set();
+let bulkEmpDeptId = null;
+let _bulkTemplate = null;
+
+function openBulkModal() {
+  // 従業員セレクタ
+  const sel = document.getElementById('bulk-emp-sel');
+  sel.innerHTML = '<option value="">-- 従業員を選択 --</option>';
+  shiftEmployees.forEach(e => {
+    const o = document.createElement('option');
+    o.value = e.employee_id;
+    o.textContent = `${e.name}（${e.department || '--'}）`;
+    o.dataset.deptId = e.department_id || '';
+    sel.appendChild(o);
+  });
+
+  // 年月セレクタ（初期化は1回のみ）
+  const bYear = document.getElementById('bulk-year');
+  const bMonth = document.getElementById('bulk-month');
+  if (!bYear.options.length) {
+    const now = new Date();
+    for (let y = now.getFullYear() - 1; y <= now.getFullYear() + 1; y++) {
+      const o = document.createElement('option');
+      o.value = y; o.textContent = y + '年';
+      if (y === now.getFullYear()) o.selected = true;
+      bYear.appendChild(o);
+    }
+    for (let m = 1; m <= 12; m++) {
+      const o = document.createElement('option');
+      o.value = m; o.textContent = m + '月';
+      if (m === now.getMonth() + 1) o.selected = true;
+      bMonth.appendChild(o);
+    }
+  }
+
+  renderBulkTemplates();
+  _bulkTemplate = null;
+  bulkEmpDeptId = null;
+  bulkSelectedDates = new Set();
+  document.getElementById('bulk-calendar').innerHTML =
+    '<div style="text-align:center;color:var(--text-muted);padding:24px">従業員とテンプレートを選択してください</div>';
+  document.getElementById('bulk-count').textContent = '0';
+  document.getElementById('bulk-shift-modal').classList.remove('hidden');
+}
+
+function renderBulkTemplates() {
+  const el = document.getElementById('bulk-tmpl-list');
+  el.innerHTML = '';
+  shiftTemplates.forEach(t => {
+    const btn = document.createElement('button');
+    btn.className = 'btn-outline btn-sm';
+    btn.id = `btmpl-${t.id}`;
+    btn.innerHTML = `<strong>${t.name}</strong>&nbsp;${t.start_time.slice(0,5)}〜${t.end_time.slice(0,5)}`;
+    btn.onclick = () => selectBulkTemplate(t);
+    el.appendChild(btn);
+  });
+}
+
+function selectBulkTemplate(tmpl) {
+  _bulkTemplate = tmpl;
+  document.querySelectorAll('[id^="btmpl-"]').forEach(b => {
+    const active = b.id === `btmpl-${tmpl.id}`;
+    b.style.background = active ? 'var(--primary)' : '';
+    b.style.color = active ? 'white' : '';
+    b.style.borderColor = active ? 'var(--primary)' : '';
+  });
+  if (document.getElementById('bulk-emp-sel').value) initBulkCalendar();
+}
+
+function onBulkEmpChange() {
+  const opt = document.getElementById('bulk-emp-sel').selectedOptions[0];
+  bulkEmpDeptId = opt && opt.dataset.deptId ? parseInt(opt.dataset.deptId) : null;
+  initBulkCalendar();
+}
+
+function initBulkCalendar() {
+  if (!document.getElementById('bulk-emp-sel').value) return;
+  const year = parseInt(document.getElementById('bulk-year').value);
+  const month = parseInt(document.getElementById('bulk-month').value);
+  const holidays = bulkEmpDeptId && deptHolidayMap[bulkEmpDeptId] ? deptHolidayMap[bulkEmpDeptId] : [];
+  const daysInMonth = new Date(year, month, 0).getDate();
+
+  bulkSelectedDates = new Set();
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dow = new Date(year, month - 1, d).getDay();
+    if (!holidays.includes(dow)) {
+      bulkSelectedDates.add(`${year}-${String(month).padStart(2,'0')}-${String(d).padStart(2,'0')}`);
+    }
+  }
+  renderBulkCalendar();
+}
+
+function renderBulkCalendar() {
+  const year = parseInt(document.getElementById('bulk-year').value);
+  const month = parseInt(document.getElementById('bulk-month').value);
+  const holidays = bulkEmpDeptId && deptHolidayMap[bulkEmpDeptId] ? deptHolidayMap[bulkEmpDeptId] : [];
+  const daysInMonth = new Date(year, month, 0).getDate();
+  const firstDow = new Date(year, month - 1, 1).getDay();
+  const today = new Date().toISOString().slice(0, 10);
+
+  let html = '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px">';
+  ['日','月','火','水','木','金','土'].forEach((d, i) => {
+    const c = i===0 ? 'var(--danger)' : i===6 ? 'var(--primary-light)' : 'var(--text-muted)';
+    html += `<div style="text-align:center;color:${c};font-weight:700;font-size:0.75rem;padding:4px 0">${d}</div>`;
+  });
+
+  for (let i = 0; i < firstDow; i++) html += '<div></div>';
+
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dow = (firstDow + d - 1) % 7;
+    const dateStr = `${year}-${String(month).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const isHoliday = holidays.includes(dow);
+    const isSelected = bulkSelectedDates.has(dateStr);
+    const isToday = dateStr === today;
+    const isSun = dow === 0, isSat = dow === 6;
+
+    let bg, color, border;
+    if (isHoliday) {
+      bg = '#F1F5F9'; color = '#94A3B8'; border = '1px solid #E2E8F0';
+    } else if (isSelected) {
+      bg = 'var(--accent)'; color = 'white'; border = '1px solid var(--accent)';
+    } else {
+      bg = 'white';
+      color = isSun ? 'var(--danger)' : isSat ? 'var(--primary-light)' : 'var(--text)';
+      border = '1px solid var(--border)';
+    }
+
+    html += `<div onclick="${isHoliday ? '' : `toggleBulkDate('${dateStr}')`}"
+      style="text-align:center;padding:7px 2px;border-radius:6px;cursor:${isHoliday?'default':'pointer'};background:${bg};color:${color};border:${border};font-size:0.82rem;font-weight:${isToday?700:400}">
+      ${d}${isHoliday ? '<div style="font-size:0.58rem;opacity:.7;line-height:1.2">休</div>' : ''}
+    </div>`;
+  }
+
+  html += '</div>';
+  document.getElementById('bulk-calendar').innerHTML = html;
+  document.getElementById('bulk-count').textContent = bulkSelectedDates.size;
+}
+
+function toggleBulkDate(dateStr) {
+  if (bulkSelectedDates.has(dateStr)) bulkSelectedDates.delete(dateStr);
+  else bulkSelectedDates.add(dateStr);
+  renderBulkCalendar();
+}
+
+function resetBulkSelection() { initBulkCalendar(); }
+
+async function saveBulkShifts() {
+  const empId = document.getElementById('bulk-emp-sel').value;
+  if (!empId) { alert('従業員を選択してください'); return; }
+  if (!_bulkTemplate) { alert('テンプレートを選択してください'); return; }
+  if (!bulkSelectedDates.size) { alert('出勤日を選択してください'); return; }
+  if (!confirm(`${bulkSelectedDates.size}日分のシフトを登録しますか？\n（既存のシフトは上書きされます）`)) return;
+  try {
+    const res = await api('/api/admin/shifts/bulk', 'POST', {
+      employee_id: empId,
+      dates: [...bulkSelectedDates].sort(),
+      start_time: _bulkTemplate.start_time,
+      end_time: _bulkTemplate.end_time,
+    });
+    const d = await res.json();
+    if (!res.ok) { alert(d.detail || 'エラー'); return; }
+    document.getElementById('bulk-shift-modal').classList.add('hidden');
+    loadShifts();
+    if (!document.getElementById('shift-tab-annual').classList.contains('hidden')) loadAnnualCalendar();
+    alert(`${d.count}日分のシフトを登録しました`);
+  } catch(e) { alert('通信エラー'); }
+}
+
 // 初期ロード
 loadDashboard();
 loadDeptOptions('att-dept', true);

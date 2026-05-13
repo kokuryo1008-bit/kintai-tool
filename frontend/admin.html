@@ -180,6 +180,7 @@
             <select id="shift-month" style="width:auto"></select>
             <select id="shift-dept-filter" style="width:auto"><option value="">全部署</option></select>
             <button class="btn-outline btn-sm" onclick="loadShifts()">表示</button>
+            <button class="btn-primary" style="width:auto;padding:8px 18px;font-size:0.85rem;margin-left:auto" onclick="openBulkModal()">📅 一括登録</button>
           </div>
           <div class="card">
             <div class="card-title">📋 シフト表</div>
@@ -234,6 +235,39 @@
           </div>
           <div id="dept-list"></div>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 一括シフト登録モーダル -->
+  <div id="bulk-shift-modal" class="modal-overlay hidden">
+    <div class="modal" style="max-width:540px">
+      <div class="modal-title">📅 一括シフト登録</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+        <div class="form-group" style="margin:0">
+          <label>従業員</label>
+          <select id="bulk-emp-sel" onchange="onBulkEmpChange()" style="width:100%"></select>
+        </div>
+        <div style="display:flex;gap:8px">
+          <div class="form-group" style="margin:0;flex:1"><label>年</label><select id="bulk-year" onchange="initBulkCalendar()" style="width:100%"></select></div>
+          <div class="form-group" style="margin:0;flex:1"><label>月</label><select id="bulk-month" onchange="initBulkCalendar()" style="width:100%"></select></div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>シフトテンプレート</label>
+        <div id="bulk-tmpl-list" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"></div>
+      </div>
+      <div style="margin-bottom:8px;font-size:0.82rem;color:var(--text-muted)">
+        出勤日をクリックして選択 ／ <span style="display:inline-block;width:12px;height:12px;background:#F1F5F9;border-radius:2px;vertical-align:middle"></span> 定休日（変更不可）
+      </div>
+      <div id="bulk-calendar" style="background:#F8FAFC;border-radius:10px;padding:12px;margin-bottom:12px"></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;font-size:0.85rem;margin-bottom:4px">
+        <span style="color:var(--text-muted)">選択: <strong id="bulk-count" style="color:var(--primary);font-size:1rem">0</strong> 日</span>
+        <button class="btn-outline btn-sm" onclick="resetBulkSelection()">リセット</button>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-outline" onclick="document.getElementById('bulk-shift-modal').classList.add('hidden')">キャンセル</button>
+        <button class="btn-primary" style="width:auto;padding:10px 28px" onclick="saveBulkShifts()">一括登録</button>
       </div>
     </div>
   </div>

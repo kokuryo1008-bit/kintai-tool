@@ -796,6 +796,35 @@ def admin_get_shifts(year: int = None, month: int = None, department_id: int = N
     conn.close()
     return {"shifts": [dict(r) for r in rows]}
 
+class ShiftBulkReq(BaseModel):
+    employee_id: str
+    dates: list[str]
+    start_time: str
+    end_time: str
+
+@app.post("/api/admin/shifts/bulk")
+def admin_set_shifts_bulk(req: ShiftBulkReq, user=Depends(get_current_user)):
+    require_admin(user)
+    conn = get_conn()
+    target = conn.execute("SELECT id, department_id FROM users WHERE employee_id=? AND is_active=1", (req.employee_id,)).fetchone()
+    if not target:
+        conn.close()
+        raise HTTPException(status_code=404, detail="従業員が見つかりません。")
+    if user["role"] == "manager" and user.get("department_id") != target["department_id"]:
+        conn.close()
+        raise HTTPException(status_code=403, detail="自部署の従業員のみシフト設定できます。")
+    for d in req.dates:
+        conn.execute("""
+            INSERT INTO shifts (user_id, shift_date, start_time, end_time, created_by)
+            VALUES (?,?,?,?,?)
+            ON CONFLICT(user_id, shift_date) DO UPDATE SET
+                start_time=excluded.start_time, end_time=excluded.end_time, created_by=excluded.created_by
+        """, (target["id"], d, req.start_time, req.end_time, user["id"]))
+    conn.commit()
+    conn.close()
+    return {"ok": True, "count": len(req.dates)}
+
+
 @app.post("/api/admin/shifts")
 def admin_set_shift(req: ShiftReq, user=Depends(get_current_user)):
     require_admin(user)
