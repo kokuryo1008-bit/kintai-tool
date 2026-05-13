@@ -131,17 +131,15 @@
 
       <!-- シフト管理 -->
       <div id="section-shifts" class="hidden">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:12px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:12px">
           <h2 style="font-size:1.2rem;font-weight:800;color:var(--primary)">シフト管理</h2>
-          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-            <select id="shift-year" style="width:auto"></select>
-            <select id="shift-month" style="width:auto"></select>
-            <select id="shift-dept-filter" style="width:auto"><option value="">全部署</option></select>
-            <button class="btn-outline btn-sm" onclick="loadShifts()">表示</button>
+          <div class="tabs" style="margin-bottom:0;border-bottom:none">
+            <button class="tab-btn active" onclick="showShiftTab('monthly')" id="stab-monthly">月別表</button>
+            <button class="tab-btn" onclick="showShiftTab('annual')" id="stab-annual">年間カレンダー</button>
           </div>
         </div>
 
-        <!-- テンプレート管理 -->
+        <!-- テンプレート管理（共通） -->
         <div class="card" style="margin-bottom:16px">
           <div class="card-title">⏰ シフトテンプレート</div>
           <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin-bottom:12px">
@@ -153,15 +151,39 @@
           <div id="tmpl-list" style="display:flex;gap:8px;flex-wrap:wrap"></div>
         </div>
 
-        <!-- シフト表 -->
-        <div class="card">
-          <div class="card-title">📋 シフト表</div>
-          <div style="overflow-x:auto">
-            <table id="shift-table" style="min-width:600px">
-              <thead id="shift-thead"></thead>
-              <tbody id="shift-tbody"></tbody>
-            </table>
+        <!-- 月別表 -->
+        <div id="shift-tab-monthly">
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:16px">
+            <select id="shift-year" style="width:auto"></select>
+            <select id="shift-month" style="width:auto"></select>
+            <select id="shift-dept-filter" style="width:auto"><option value="">全部署</option></select>
+            <button class="btn-outline btn-sm" onclick="loadShifts()">表示</button>
           </div>
+          <div class="card">
+            <div class="card-title">📋 シフト表</div>
+            <div style="overflow-x:auto">
+              <table id="shift-table" style="min-width:600px">
+                <thead id="shift-thead"></thead>
+                <tbody id="shift-tbody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- 年間カレンダー -->
+        <div id="shift-tab-annual" class="hidden">
+          <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;margin-bottom:16px">
+            <div class="form-group" style="margin:0">
+              <label>年</label>
+              <select id="annual-year" style="width:auto"></select>
+            </div>
+            <div class="form-group" style="margin:0">
+              <label>部署</label>
+              <select id="annual-dept" style="width:auto"><option value="">全部署</option></select>
+            </div>
+            <button class="btn-outline btn-sm" onclick="loadAnnualCalendar()">表示</button>
+          </div>
+          <div id="annual-calendar-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px"></div>
         </div>
       </div>
 

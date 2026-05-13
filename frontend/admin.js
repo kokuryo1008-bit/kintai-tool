@@ -566,7 +566,20 @@ let shiftEmployees = [];
 })();
 
 async function initShifts() {
-  await loadDeptOptions('shift-dept-filter', true);
+  await Promise.all([
+    loadDeptOptions('shift-dept-filter', true),
+    loadDeptOptions('annual-dept', true),
+  ]);
+  const annYearSel = document.getElementById('annual-year');
+  if (!annYearSel.options.length) {
+    const now = new Date();
+    for (let y = now.getFullYear() - 1; y <= now.getFullYear() + 1; y++) {
+      const o = document.createElement('option');
+      o.value = y; o.textContent = y + '年';
+      if (y === now.getFullYear()) o.selected = true;
+      annYearSel.appendChild(o);
+    }
+  }
   await Promise.all([loadTemplates(), loadShiftEmployees()]);
   loadShifts();
 }
@@ -744,6 +757,7 @@ async function saveShift() {
   if (!res.ok) { const d = await res.json(); alert(d.detail || 'エラー'); return; }
   document.getElementById('shift-edit-overlay').remove();
   loadShifts();
+  if (!document.getElementById('shift-tab-annual').classList.contains('hidden')) loadAnnualCalendar();
 }
 
 async function deleteShift(shiftId) {
@@ -751,6 +765,7 @@ async function deleteShift(shiftId) {
   await api('/api/admin/shifts/' + shiftId, 'DELETE');
   document.getElementById('shift-edit-overlay').remove();
   loadShifts();
+  if (!document.getElementById('shift-tab-annual').classList.contains('hidden')) loadAnnualCalendar();
 }
 
 // ── 打刻ウィジェット ──────────────────────────────────────────────────────────
@@ -808,6 +823,144 @@ async function wClockOut() {
     wLoadTodayStatus();
   } catch(e) { alert('通信エラー'); btn.disabled = false; btn.textContent = '退勤'; }
 }
+
+// ── 年間カレンダー ────────────────────────────────────────────────────────────
+
+let annualShiftMap = {};
+let annualEmps = [];
+
+function showShiftTab(tab) {
+  ['monthly', 'annual'].forEach(t => {
+    document.getElementById('shift-tab-' + t).classList.toggle('hidden', t !== tab);
+    document.getElementById('stab-' + t).classList.toggle('active', t === tab);
+  });
+  if (tab === 'annual') loadAnnualCalendar();
+}
+
+async function loadAnnualCalendar() {
+  const year = parseInt(document.getElementById('annual-year').value);
+  const dept = document.getElementById('annual-dept').value;
+
+  let shiftUrl = `/api/admin/shifts/annual?year=${year}`;
+  if (dept) shiftUrl += `&department_id=${dept}`;
+
+  let empUrl = '/api/admin/employees';
+  if (dept) empUrl += `?department_id=${dept}`;
+
+  try {
+    const [shiftRes, empRes] = await Promise.all([api(shiftUrl), api(empUrl)]);
+    const shiftD = await shiftRes.json();
+    const empD = await empRes.json();
+
+    annualShiftMap = {};
+    (shiftD.shifts || []).forEach(s => {
+      if (!annualShiftMap[s.shift_date]) annualShiftMap[s.shift_date] = [];
+      annualShiftMap[s.shift_date].push(s);
+    });
+    annualEmps = dept ? (empD.employees || []) : [];
+    renderAnnualCalendar(year);
+  } catch(e) {}
+}
+
+function renderAnnualCalendar(year) {
+  const grid = document.getElementById('annual-calendar-grid');
+  const today = new Date().toISOString().slice(0, 10);
+  grid.innerHTML = '';
+
+  for (let m = 1; m <= 12; m++) {
+    const daysInMonth = new Date(year, m, 0).getDate();
+    const firstDow = new Date(year, m - 1, 1).getDay();
+    const card = document.createElement('div');
+    card.style.cssText = 'background:white;border-radius:12px;border:1px solid var(--border);padding:14px;box-shadow:0 1px 4px rgba(0,0,0,.06)';
+
+    let html = `<div style="font-size:0.95rem;font-weight:800;color:var(--primary);margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--border)">${m}月</div>`;
+    html += '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:1px">';
+
+    ['日','月','火','水','木','金','土'].forEach((d, i) => {
+      const c = i === 0 ? 'var(--danger)' : i === 6 ? 'var(--primary-light)' : 'var(--text-muted)';
+      html += `<div style="text-align:center;color:${c};font-weight:700;font-size:0.68rem;padding:2px 0">${d}</div>`;
+    });
+
+    for (let i = 0; i < firstDow; i++) html += '<div></div>';
+
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dow = (firstDow + d - 1) % 7;
+      const dateStr = `${year}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+      const isToday = dateStr === today;
+      const isSun = dow === 0, isSat = dow === 6;
+      const cnt = (annualShiftMap[dateStr] || []).length;
+      const bg = isToday ? '#DBEAFE' : isSun ? '#FFF0F0' : isSat ? '#F0F5FF' : 'transparent';
+      const nc = isSun ? 'var(--danger)' : isSat ? 'var(--primary-light)' : 'var(--text)';
+
+      html += `<div onclick="openDayPanel('${dateStr}')" title="${dateStr}" style="text-align:center;padding:2px 1px;border-radius:4px;cursor:pointer;background:${bg}">
+        <div style="color:${nc};font-weight:${isToday?700:400};font-size:0.72rem">${d}</div>
+        ${cnt
+          ? `<div style="background:var(--accent);color:white;border-radius:3px;font-size:0.6rem;font-weight:700;line-height:14px">${cnt}</div>`
+          : '<div style="height:14px"></div>'}
+      </div>`;
+    }
+    html += '</div>';
+    card.innerHTML = html;
+    grid.appendChild(card);
+  }
+}
+
+function openDayPanel(dateStr) {
+  const dayShifts = annualShiftMap[dateStr] || [];
+  const [y, mo, d] = dateStr.split('-');
+  const dow = new Date(parseInt(y), parseInt(mo) - 1, parseInt(d)).getDay();
+  const dispDate = `${y}年${parseInt(mo)}月${parseInt(d)}日（${'日月火水木金土'[dow]}）`;
+
+  const existing = document.getElementById('day-panel-overlay');
+  if (existing) existing.remove();
+
+  const overlay = document.createElement('div');
+  overlay.id = 'day-panel-overlay';
+  overlay.className = 'modal-overlay';
+
+  let rows;
+  if (annualEmps.length) {
+    const shiftByEmp = {};
+    dayShifts.forEach(s => { shiftByEmp[s.employee_id] = s; });
+    rows = annualEmps.map(emp => {
+      const s = shiftByEmp[emp.employee_id];
+      return s
+        ? `<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:#EFF6FF;border-radius:8px;margin-bottom:6px;cursor:pointer" onclick="closeDayAndEdit('${emp.employee_id}','${escQ(emp.name)}','${dateStr}','${s.start_time}','${s.end_time}',${s.id})">
+            <span style="font-weight:600">${emp.name}</span>
+            <span style="color:var(--primary);font-weight:700">${s.start_time.slice(0,5)}〜${s.end_time.slice(0,5)}</span>
+           </div>`
+        : `<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:#F8FAFC;border-radius:8px;margin-bottom:6px;cursor:pointer;border:1px dashed var(--border)" onclick="closeDayAndEdit('${emp.employee_id}','${escQ(emp.name)}','${dateStr}','','',null)">
+            <span style="color:var(--text-muted)">${emp.name}</span>
+            <span style="font-size:0.8rem;color:var(--text-muted)">＋ 追加</span>
+           </div>`;
+    }).join('');
+  } else {
+    rows = dayShifts.length
+      ? dayShifts.map(s =>
+          `<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:#EFF6FF;border-radius:8px;margin-bottom:6px;cursor:pointer" onclick="closeDayAndEdit('${s.employee_id}','${escQ(s.name)}','${dateStr}','${s.start_time}','${s.end_time}',${s.id})">
+            <div><span style="font-weight:600">${s.name}</span><span style="font-size:0.78rem;color:var(--text-muted);margin-left:8px">${s.department||''}</span></div>
+            <span style="color:var(--primary);font-weight:700">${s.start_time.slice(0,5)}〜${s.end_time.slice(0,5)}</span>
+           </div>`
+        ).join('')
+      : '<div style="text-align:center;color:var(--text-muted);padding:24px">この日のシフトはありません</div>';
+  }
+
+  overlay.innerHTML = `
+    <div class="modal" style="max-width:420px;max-height:80vh;overflow-y:auto">
+      <div class="modal-title">📅 ${dispDate}</div>
+      ${dayShifts.length ? `<div style="margin-bottom:12px;font-size:0.83rem;color:var(--text-muted)">${dayShifts.length}名登録済み</div>` : ''}
+      ${rows}
+      <div class="modal-footer"><button class="btn-outline" onclick="document.getElementById('day-panel-overlay').remove()">閉じる</button></div>
+    </div>`;
+  document.body.appendChild(overlay);
+}
+
+function closeDayAndEdit(empId, empName, shiftDate, startTime, endTime, shiftId) {
+  document.getElementById('day-panel-overlay').remove();
+  openShiftEdit(empId, empName, shiftDate, startTime, endTime, shiftId);
+}
+
+function escQ(str) { return str.replace(/'/g, "\\'"); }
 
 // 初期ロード
 loadDashboard();

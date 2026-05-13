@@ -452,12 +452,12 @@ class EmpUpdate(BaseModel):
     leave_remaining: Optional[float] = None
 
 @app.get("/api/admin/employees")
-def admin_list_employees(user=Depends(get_current_user)):
+def admin_list_employees(department_id: int = None, user=Depends(get_current_user)):
     require_admin(user)
-    dept = _dept_id(user)
+    dept = _dept_id(user) or department_id
     conn = get_conn()
     q = """
-        SELECT u.employee_id, u.name, d.name as department, u.position,
+        SELECT u.employee_id, u.name, u.department_id, d.name as department, u.position,
                u.role, (u.annual_leave - COALESCE(u.used_leave,0)) as leave_remaining
         FROM users u LEFT JOIN departments d ON u.department_id=d.id
         WHERE u.is_active=1 AND u.role NOT IN ('admin')
@@ -800,6 +800,30 @@ def delete_template(tmpl_id: int, user=Depends(get_current_user)):
     conn.commit()
     conn.close()
     return {"ok": True}
+
+
+@app.get("/api/admin/shifts/annual")
+def admin_get_annual_shifts(year: int = None, department_id: int = None, user=Depends(get_current_user)):
+    require_admin(user)
+    y = year or date.today().year
+    dept = _dept_id(user) or department_id
+    conn = get_conn()
+    q = """
+        SELECT s.id, u.name, u.employee_id, d.name as department,
+               s.shift_date, s.start_time, s.end_time
+        FROM shifts s
+        JOIN users u ON s.user_id=u.id
+        LEFT JOIN departments d ON u.department_id=d.id
+        WHERE strftime('%Y', s.shift_date)=?
+    """
+    params = [f"{y:04d}"]
+    if dept:
+        q += " AND u.department_id=?"
+        params.append(dept)
+    q += " ORDER BY s.shift_date, u.employee_id"
+    rows = conn.execute(q, params).fetchall()
+    conn.close()
+    return {"shifts": [dict(r) for r in rows]}
 
 
 @app.get("/api/health")

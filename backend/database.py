@@ -18,6 +18,11 @@ def _pg_sql(sql: str) -> str:
         r"TO_CHAR(\1::date,'YYYY-MM')",
         sql,
     )
+    sql = re.sub(
+        r"strftime\('%Y',\s*([a-zA-Z_.]+)\)",
+        r"TO_CHAR(\1::date,'YYYY')",
+        sql,
+    )
     return sql
 
 
@@ -104,7 +109,10 @@ _DB_PATH = Path(__file__).parent.parent / "data" / "kintai.db"
 def get_conn():
     if DATABASE_URL:
         import psycopg2
-        raw = psycopg2.connect(DATABASE_URL)
+        url = DATABASE_URL
+        if "sslmode" not in url:
+            url += ("&" if "?" in url else "?") + "sslmode=require"
+        raw = psycopg2.connect(url)
         raw.autocommit = False
         return _PGConn(raw)
     else:
