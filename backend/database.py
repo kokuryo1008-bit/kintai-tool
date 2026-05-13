@@ -239,6 +239,21 @@ CREATE TABLE IF NOT EXISTS mandatory_leaves (
     leave_date  TEXT NOT NULL,
     created_at  TEXT DEFAULT (datetime('now','localtime')),
     UNIQUE(user_id, leave_date)
+);
+
+CREATE TABLE IF NOT EXISTS daily_reports (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id      INTEGER NOT NULL REFERENCES users(id),
+    report_date  TEXT NOT NULL,
+    part_number  TEXT,
+    estimate_no  TEXT,
+    work_code    TEXT,
+    board_start  TEXT,
+    board_end    TEXT,
+    other_code   TEXT,
+    other_start  TEXT,
+    other_end    TEXT,
+    created_at   TEXT DEFAULT (datetime('now','localtime'))
 )
 """
 

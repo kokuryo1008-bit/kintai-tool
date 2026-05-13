@@ -68,6 +68,7 @@
       <div class="tabs">
         <button class="tab-btn active" onclick="showTab('history')">勤務履歴</button>
         <button class="tab-btn" onclick="showTab('leave')">有給申請</button>
+        <button class="tab-btn" onclick="showTab('report')">日報</button>
       </div>
 
       <!-- 勤務履歴 -->
@@ -89,6 +90,37 @@
         </div>
       </div>
 
+      <!-- 日報 -->
+      <div id="tab-report" class="hidden">
+        <div style="display:flex;gap:8px;margin-bottom:12px;align-items:center;flex-wrap:wrap">
+          <select id="rep-year" style="width:auto"></select>
+          <select id="rep-month" style="width:auto"></select>
+          <button class="btn-outline btn-sm" onclick="loadReport()">表示</button>
+          <button class="btn-primary" style="width:auto;padding:8px 16px;font-size:0.85rem;margin-left:auto" onclick="openReportModal()">＋ 行を追加</button>
+        </div>
+        <div style="overflow-x:auto">
+          <table id="report-table" style="min-width:640px;font-size:0.78rem">
+            <thead>
+              <tr>
+                <th rowspan="2" style="min-width:64px">日付</th>
+                <th colspan="3" style="background:#EFF6FF;color:var(--primary)">基板</th>
+                <th colspan="2" style="background:#F0FDF4;color:#059669">その他</th>
+                <th rowspan="2" style="min-width:60px"></th>
+              </tr>
+              <tr>
+                <th style="background:#EFF6FF;min-width:110px">品番 / 見積No</th>
+                <th style="background:#EFF6FF;min-width:80px">作業内容</th>
+                <th style="background:#EFF6FF;min-width:90px">開始〜終了</th>
+                <th style="background:#F0FDF4;min-width:80px">作業内容</th>
+                <th style="background:#F0FDF4;min-width:90px">開始〜終了</th>
+              </tr>
+            </thead>
+            <tbody id="report-body"></tbody>
+            <tfoot id="report-foot"></tfoot>
+          </table>
+        </div>
+      </div>
+
       <!-- 有給申請 -->
       <div id="tab-leave" class="hidden">
         <div style="background:#D1FAE5;border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:0.88rem">
@@ -105,6 +137,37 @@
         </div>
       </div>
 
+    </div>
+  </div>
+
+  <!-- 日報 行追加・編集モーダル -->
+  <div id="report-modal" class="modal-overlay hidden">
+    <div class="modal" style="max-width:480px">
+      <div class="modal-title" id="report-modal-title">日報 行追加</div>
+      <input type="hidden" id="rep-entry-id">
+      <div class="form-group"><label>日付</label><input type="date" id="rep-date"></div>
+      <div style="background:#EFF6FF;border-radius:8px;padding:12px;margin-bottom:12px">
+        <div style="font-weight:700;font-size:0.85rem;color:var(--primary);margin-bottom:10px">基板</div>
+        <div class="form-group" style="margin-bottom:8px"><label>品番</label><input type="text" id="rep-part" placeholder="例: PCB-001"></div>
+        <div class="form-group" style="margin-bottom:8px"><label>見積No</label><input type="text" id="rep-est" placeholder="例: Q-001"></div>
+        <div class="form-group" style="margin-bottom:8px"><label>作業内容（A〜N）</label><select id="rep-work-code" style="width:100%"></select></div>
+        <div style="display:flex;gap:8px">
+          <div class="form-group" style="margin:0;flex:1"><label>開始</label><input type="time" id="rep-board-start"></div>
+          <div class="form-group" style="margin:0;flex:1"><label>終了</label><input type="time" id="rep-board-end"></div>
+        </div>
+      </div>
+      <div style="background:#F0FDF4;border-radius:8px;padding:12px;margin-bottom:16px">
+        <div style="font-weight:700;font-size:0.85rem;color:#059669;margin-bottom:10px">その他</div>
+        <div class="form-group" style="margin-bottom:8px"><label>作業内容（A〜O）</label><select id="rep-other-code" style="width:100%"></select></div>
+        <div style="display:flex;gap:8px">
+          <div class="form-group" style="margin:0;flex:1"><label>開始</label><input type="time" id="rep-other-start"></div>
+          <div class="form-group" style="margin:0;flex:1"><label>終了</label><input type="time" id="rep-other-end"></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-outline" onclick="closeReportModal()">キャンセル</button>
+        <button class="btn-primary" style="width:auto;padding:10px 24px" onclick="saveReport()">保存</button>
+      </div>
     </div>
   </div>
 

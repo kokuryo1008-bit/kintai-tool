@@ -268,13 +268,204 @@ async function submitTrip() {
 
 // ── タブ ──
 function showTab(name) {
-  ['history','leave'].forEach(t => {
+  ['history','leave','report'].forEach(t => {
     document.getElementById('tab-' + t).classList.toggle('hidden', t !== name);
   });
   document.querySelectorAll('.tab-btn').forEach((btn, i) => {
-    btn.classList.toggle('active', ['history','leave'][i] === name);
+    btn.classList.toggle('active', ['history','leave','report'][i] === name);
   });
   if (name === 'leave') loadLeaveInfo();
+  if (name === 'report') loadReport();
+}
+
+// ── 日報 ──
+const WORK_CODES = [
+  ['A','部品検品・部品注文・払出・部品確認'],
+  ['B','タクト図面,プログラム作成・確認'],
+  ['C','部品セッティング(SMD/手載せ)'],
+  ['D','SMD/手載せ/リフロー（1st）'],
+  ['E','SMD/手載せ/リフロー（2nd）'],
+  ['F','部品前準備・DIP部品加工'],
+  ['G','マスキングテープ貼り・シール貼り(作成)'],
+  ['H','手挿入・自動半田DIP'],
+  ['I','後付け・組立・改造'],
+  ['J','製品仕上げ(リードカット、清掃)'],
+  ['K','初品検査/製品出荷検査'],
+  ['L','修正'],
+  ['M','返却部品の確認・梱包・伝票処理・発送'],
+  ['N','作業指導'],
+  ['O','棚卸'],
+];
+
+function workCodeLabel(code) {
+  if (!code) return '--';
+  const entry = WORK_CODES.find(([c]) => c === code);
+  return entry ? `${entry[0]}: ${entry[1]}` : code;
+}
+
+function buildWorkCodeOptions(selectId, includeO = true) {
+  const sel = document.getElementById(selectId);
+  sel.innerHTML = '<option value="">-- 選択 --</option>';
+  WORK_CODES.forEach(([code, label]) => {
+    if (!includeO && code === 'O') return;
+    const o = document.createElement('option');
+    o.value = code;
+    o.textContent = `${code}: ${label}`;
+    sel.appendChild(o);
+  });
+}
+
+function calcMinutes(start, end) {
+  if (!start || !end) return 0;
+  const [sh, sm] = start.split(':').map(Number);
+  const [eh, em] = end.split(':').map(Number);
+  return Math.max(0, (eh * 60 + em) - (sh * 60 + sm));
+}
+
+(function initRepSelects() {
+  const now = new Date();
+  const ysel = document.getElementById('rep-year');
+  for (let y = now.getFullYear(); y >= now.getFullYear() - 2; y--) {
+    const o = document.createElement('option');
+    o.value = y; o.textContent = y + '年';
+    if (y === now.getFullYear()) o.selected = true;
+    ysel.appendChild(o);
+  }
+  const msel = document.getElementById('rep-month');
+  for (let m = 1; m <= 12; m++) {
+    const o = document.createElement('option');
+    o.value = m; o.textContent = m + '月';
+    if (m === now.getMonth() + 1) o.selected = true;
+    msel.appendChild(o);
+  }
+  buildWorkCodeOptions('rep-work-code', false);
+  buildWorkCodeOptions('rep-other-code', true);
+})();
+
+let reportEntries = [];
+
+async function loadReport() {
+  const year = document.getElementById('rep-year').value;
+  const month = document.getElementById('rep-month').value;
+  try {
+    const res = await api(`/api/reports/mine?year=${year}&month=${month}`);
+    const d = await res.json();
+    if (!res.ok) return;
+    reportEntries = d.entries || [];
+    renderReport();
+  } catch(e) {}
+}
+
+function renderReport() {
+  const tbody = document.getElementById('report-body');
+  const tfoot = document.getElementById('report-foot');
+  tbody.innerHTML = '';
+  let totalBoard = 0, totalOther = 0;
+  if (!reportEntries.length) {
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:16px">記録がありません</td></tr>';
+    tfoot.innerHTML = '';
+    return;
+  }
+  reportEntries.forEach(r => {
+    const bMin = calcMinutes(r.board_start, r.board_end);
+    const oMin = calcMinutes(r.other_start, r.other_end);
+    totalBoard += bMin;
+    totalOther += oMin;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td style="white-space:nowrap">${r.report_date.slice(5).replace('-','/')}</td>
+      <td style="background:#F7FAFF">
+        ${r.part_number ? `<div style="font-weight:600">${r.part_number}</div>` : ''}
+        ${r.estimate_no ? `<div style="font-size:0.72rem;color:var(--text-muted)">見積:${r.estimate_no}</div>` : ''}
+        ${!r.part_number && !r.estimate_no ? '--' : ''}
+      </td>
+      <td style="background:#F7FAFF;font-size:0.72rem">${r.work_code ? `<span style="font-weight:700;color:var(--primary)">${r.work_code}</span> ${WORK_CODES.find(([c])=>c===r.work_code)?.[1]||''}` : '--'}</td>
+      <td style="background:#F7FAFF;white-space:nowrap">${r.board_start ? r.board_start.slice(0,5)+'〜'+(r.board_end||'').slice(0,5) : '--'}</td>
+      <td style="background:#F0FDF4;font-size:0.72rem">${r.other_code ? `<span style="font-weight:700;color:#059669">${r.other_code}</span> ${WORK_CODES.find(([c])=>c===r.other_code)?.[1]||''}` : '--'}</td>
+      <td style="background:#F0FDF4;white-space:nowrap">${r.other_start ? r.other_start.slice(0,5)+'〜'+(r.other_end||'').slice(0,5) : '--'}</td>
+      <td style="white-space:nowrap">
+        <button class="btn-outline btn-sm" onclick="openReportModal(${r.id})">編集</button>
+        <button class="btn-outline btn-sm" style="color:var(--danger);border-color:var(--danger);margin-left:4px" onclick="deleteReportEntry(${r.id})">削除</button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+  tfoot.innerHTML = `<tr style="font-weight:700;background:#F8FAFC">
+    <td colspan="3" style="text-align:right;padding:8px 12px">合計時間</td>
+    <td style="background:#EFF6FF;padding:8px 12px">${fmtMin(totalBoard)}</td>
+    <td></td>
+    <td style="background:#ECFDF5;padding:8px 12px">${fmtMin(totalOther)}</td>
+    <td></td>
+  </tr>`;
+}
+
+function openReportModal(entryId = null) {
+  document.getElementById('report-modal-title').textContent = entryId ? '日報 編集' : '日報 行追加';
+  document.getElementById('rep-entry-id').value = entryId || '';
+  if (entryId) {
+    const r = reportEntries.find(e => e.id === entryId);
+    if (!r) return;
+    document.getElementById('rep-date').value = r.report_date;
+    document.getElementById('rep-part').value = r.part_number || '';
+    document.getElementById('rep-est').value = r.estimate_no || '';
+    document.getElementById('rep-work-code').value = r.work_code || '';
+    document.getElementById('rep-board-start').value = r.board_start ? r.board_start.slice(0,5) : '';
+    document.getElementById('rep-board-end').value = r.board_end ? r.board_end.slice(0,5) : '';
+    document.getElementById('rep-other-code').value = r.other_code || '';
+    document.getElementById('rep-other-start').value = r.other_start ? r.other_start.slice(0,5) : '';
+    document.getElementById('rep-other-end').value = r.other_end ? r.other_end.slice(0,5) : '';
+  } else {
+    const today = new Date().toISOString().slice(0, 10);
+    document.getElementById('rep-date').value = today;
+    document.getElementById('rep-part').value = '';
+    document.getElementById('rep-est').value = '';
+    document.getElementById('rep-work-code').value = '';
+    document.getElementById('rep-board-start').value = '';
+    document.getElementById('rep-board-end').value = '';
+    document.getElementById('rep-other-code').value = '';
+    document.getElementById('rep-other-start').value = '';
+    document.getElementById('rep-other-end').value = '';
+  }
+  document.getElementById('report-modal').classList.remove('hidden');
+}
+
+function closeReportModal() {
+  document.getElementById('report-modal').classList.add('hidden');
+}
+
+async function saveReport() {
+  const entryId = document.getElementById('rep-entry-id').value;
+  const date = document.getElementById('rep-date').value;
+  if (!date) { alert('日付を入力してください'); return; }
+  const body = {
+    report_date: date,
+    part_number: document.getElementById('rep-part').value.trim() || null,
+    estimate_no: document.getElementById('rep-est').value.trim() || null,
+    work_code: document.getElementById('rep-work-code').value || null,
+    board_start: document.getElementById('rep-board-start').value || null,
+    board_end: document.getElementById('rep-board-end').value || null,
+    other_code: document.getElementById('rep-other-code').value || null,
+    other_start: document.getElementById('rep-other-start').value || null,
+    other_end: document.getElementById('rep-other-end').value || null,
+  };
+  try {
+    const method = entryId ? 'PUT' : 'POST';
+    const path = entryId ? `/api/reports/${entryId}` : '/api/reports';
+    const res = await api(path, method, body);
+    const d = await res.json();
+    if (!res.ok) { alert(d.detail || 'エラーが発生しました'); return; }
+    closeReportModal();
+    loadReport();
+  } catch(e) { alert('通信エラーが発生しました'); }
+}
+
+async function deleteReportEntry(entryId) {
+  if (!confirm('この行を削除しますか？')) return;
+  try {
+    const res = await api(`/api/reports/${entryId}`, 'DELETE');
+    if (!res.ok) { const d = await res.json(); alert(d.detail || 'エラー'); return; }
+    loadReport();
+  } catch(e) { alert('通信エラーが発生しました'); }
 }
 
 // ── ログアウト ──

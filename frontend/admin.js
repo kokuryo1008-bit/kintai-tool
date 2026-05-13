@@ -48,7 +48,7 @@ function resetPin() {
 
 // ── セクション切り替え ──
 function showSection(sec) {
-  ['dashboard','employees','attendance','leave','trip','shifts','settings'].forEach(s => {
+  ['dashboard','employees','attendance','leave','trip','shifts','reports','settings'].forEach(s => {
     document.getElementById('section-' + s).classList.toggle('hidden', s !== sec);
     document.getElementById('nav-' + s).classList.toggle('active', s === sec);
   });
@@ -58,6 +58,7 @@ function showSection(sec) {
   if (sec === 'leave') loadLeave('pending');
   if (sec === 'trip') loadTrip('pending');
   if (sec === 'shifts') initShifts();
+  if (sec === 'reports') initAdminReports();
   if (sec === 'settings') loadSettings();
 }
 
@@ -1508,6 +1509,164 @@ async function saveBulkShifts() {
     if (!document.getElementById('shift-tab-annual').classList.contains('hidden')) loadAnnualCalendar();
     alert(`${d.count}日分のシフトを登録しました`);
   } catch(e) { alert('通信エラー'); }
+}
+
+// ── 日報閲覧 ──────────────────────────────────────────────────────────────────
+
+const ADM_WORK_CODES = [
+  ['A','部品検品・部品注文・払出・部品確認'],
+  ['B','タクト図面,プログラム作成・確認'],
+  ['C','部品セッティング(SMD/手載せ)'],
+  ['D','SMD/手載せ/リフロー（1st）'],
+  ['E','SMD/手載せ/リフロー（2nd）'],
+  ['F','部品前準備・DIP部品加工'],
+  ['G','マスキングテープ貼り・シール貼り(作成)'],
+  ['H','手挿入・自動半田DIP'],
+  ['I','後付け・組立・改造'],
+  ['J','製品仕上げ(リードカット、清掃)'],
+  ['K','初品検査/製品出荷検査'],
+  ['L','修正'],
+  ['M','返却部品の確認・梱包・伝票処理・発送'],
+  ['N','作業指導'],
+  ['O','棚卸'],
+];
+
+let allAdminReports = [];
+
+async function initAdminReports() {
+  const ysel = document.getElementById('rep-adm-year');
+  if (!ysel.options.length) {
+    const now = new Date();
+    for (let y = now.getFullYear(); y >= now.getFullYear() - 2; y--) {
+      const o = document.createElement('option');
+      o.value = y; o.textContent = y + '年';
+      if (y === now.getFullYear()) o.selected = true;
+      ysel.appendChild(o);
+    }
+    const msel = document.getElementById('rep-adm-month');
+    for (let m = 1; m <= 12; m++) {
+      const o = document.createElement('option');
+      o.value = m; o.textContent = m + '月';
+      if (m === now.getMonth() + 1) o.selected = true;
+      msel.appendChild(o);
+    }
+  }
+  await loadDeptOptions('rep-adm-dept', true);
+  await loadReportEmpOptions();
+  loadAdminReports();
+}
+
+async function loadReportEmpOptions() {
+  try {
+    const res = await api('/api/admin/employees');
+    const d = await res.json();
+    const sel = document.getElementById('rep-adm-emp');
+    sel.innerHTML = '<option value="">全員</option>';
+    (d.employees || []).forEach(e => {
+      const o = document.createElement('option');
+      o.value = e.employee_id;
+      o.textContent = `${e.name}（${e.department || '--'}）`;
+      sel.appendChild(o);
+    });
+  } catch(e) {}
+}
+
+async function loadAdminReports() {
+  const year = document.getElementById('rep-adm-year').value;
+  const month = document.getElementById('rep-adm-month').value;
+  const dept = document.getElementById('rep-adm-dept').value;
+  const emp = document.getElementById('rep-adm-emp').value;
+  try {
+    let url = `/api/admin/reports?year=${year}&month=${month}`;
+    if (dept) url += `&department_id=${dept}`;
+    if (emp) url += `&employee_id=${emp}`;
+    const res = await api(url);
+    const d = await res.json();
+    allAdminReports = d.entries || [];
+    renderAdminReports();
+  } catch(e) {}
+}
+
+function renderAdminReports() {
+  const tbody = document.getElementById('rep-adm-body');
+  const tfoot = document.getElementById('rep-adm-foot');
+  tbody.innerHTML = '';
+  if (!allAdminReports.length) {
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:20px">データなし</td></tr>';
+    tfoot.innerHTML = '';
+    return;
+  }
+  let totalBoard = 0, totalOther = 0;
+  allAdminReports.forEach(r => {
+    const bMin = calcRepMin(r.board_start, r.board_end);
+    const oMin = calcRepMin(r.other_start, r.other_end);
+    totalBoard += bMin;
+    totalOther += oMin;
+    const codeLabel = (code) => {
+      if (!code) return '--';
+      const e = ADM_WORK_CODES.find(([c]) => c === code);
+      return e ? `<span style="font-weight:700">${e[0]}</span> ${e[1]}` : code;
+    };
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td style="white-space:nowrap">${r.report_date}</td>
+      <td style="font-weight:600">${r.name}</td>
+      <td style="color:var(--text-muted)">${r.department || '--'}</td>
+      <td style="background:#F7FAFF">
+        ${r.part_number ? `<div style="font-weight:600">${r.part_number}</div>` : ''}
+        ${r.estimate_no ? `<div style="font-size:0.72rem;color:var(--text-muted)">見積:${r.estimate_no}</div>` : ''}
+        ${!r.part_number && !r.estimate_no ? '--' : ''}
+      </td>
+      <td style="background:#F7FAFF;font-size:0.78rem">${codeLabel(r.work_code)}</td>
+      <td style="background:#F7FAFF;white-space:nowrap">${r.board_start ? r.board_start.slice(0,5)+'〜'+(r.board_end||'').slice(0,5) : '--'}</td>
+      <td style="background:#F0FDF4;font-size:0.78rem">${codeLabel(r.other_code)}</td>
+      <td style="background:#F0FDF4;white-space:nowrap">${r.other_start ? r.other_start.slice(0,5)+'〜'+(r.other_end||'').slice(0,5) : '--'}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+  tfoot.innerHTML = `<tr style="font-weight:700;background:#F8FAFC">
+    <td colspan="5" style="text-align:right;padding:8px 12px">合計時間</td>
+    <td style="background:#EFF6FF;padding:8px 12px">${fmtAdmMin(totalBoard)}</td>
+    <td></td>
+    <td style="background:#ECFDF5;padding:8px 12px">${fmtAdmMin(totalOther)}</td>
+  </tr>`;
+}
+
+function calcRepMin(start, end) {
+  if (!start || !end) return 0;
+  const [sh, sm] = start.split(':').map(Number);
+  const [eh, em] = end.split(':').map(Number);
+  return Math.max(0, (eh * 60 + em) - (sh * 60 + sm));
+}
+
+function fmtAdmMin(min) {
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  return h + 'h' + (m ? m + 'm' : '');
+}
+
+function exportReportCSV() {
+  if (!allAdminReports.length) { alert('データがありません'); return; }
+  const codeLabel = code => {
+    if (!code) return '';
+    const e = ADM_WORK_CODES.find(([c]) => c === code);
+    return e ? `${e[0]}: ${e[1]}` : code;
+  };
+  const headers = ['日付','氏名','部署','品番','見積No','基板作業内容','基板開始','基板終了','その他作業内容','その他開始','その他終了'];
+  const rows = allAdminReports.map(r => [
+    r.report_date, r.name, r.department || '',
+    r.part_number || '', r.estimate_no || '',
+    codeLabel(r.work_code),
+    r.board_start ? r.board_start.slice(0,5) : '', r.board_end ? r.board_end.slice(0,5) : '',
+    codeLabel(r.other_code),
+    r.other_start ? r.other_start.slice(0,5) : '', r.other_end ? r.other_end.slice(0,5) : '',
+  ]);
+  const csv = [headers, ...rows].map(r => r.map(v => `"${v}"`).join(',')).join('\n');
+  const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `日報_${document.getElementById('rep-adm-year').value}_${document.getElementById('rep-adm-month').value}.csv`;
+  a.click();
 }
 
 // 初期ロード

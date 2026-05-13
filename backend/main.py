@@ -1229,6 +1229,107 @@ def set_mandatory_leaves_bulk(req: MandatoryLeaveBulkReq, user=Depends(get_curre
     return {"ok": True, "employee_count": len(employees), "date_count": len(req.dates)}
 
 
+# ── 日報（従業員） ────────────────────────────────────────────────────────────
+
+class DailyReportReq(BaseModel):
+    report_date: str
+    part_number: Optional[str] = None
+    estimate_no: Optional[str] = None
+    work_code: Optional[str] = None
+    board_start: Optional[str] = None
+    board_end: Optional[str] = None
+    other_code: Optional[str] = None
+    other_start: Optional[str] = None
+    other_end: Optional[str] = None
+
+@app.get("/api/reports/mine")
+def get_my_reports(year: int = None, month: int = None, user=Depends(get_current_user)):
+    today = datetime.now(JST).date()
+    y = year or today.year
+    m = month or today.month
+    conn = get_conn()
+    rows = conn.execute(
+        "SELECT id, report_date, part_number, estimate_no, work_code, board_start, board_end, other_code, other_start, other_end FROM daily_reports WHERE user_id=? AND strftime('%Y-%m', report_date)=? ORDER BY report_date, id",
+        (user["id"], f"{y:04d}-{m:02d}"),
+    ).fetchall()
+    conn.close()
+    return {"entries": [dict(r) for r in rows]}
+
+@app.post("/api/reports")
+def create_report(req: DailyReportReq, user=Depends(get_current_user)):
+    conn = get_conn()
+    conn.execute(
+        "INSERT INTO daily_reports (user_id, report_date, part_number, estimate_no, work_code, board_start, board_end, other_code, other_start, other_end) VALUES (?,?,?,?,?,?,?,?,?,?)",
+        (user["id"], req.report_date, req.part_number or None, req.estimate_no or None,
+         req.work_code or None, req.board_start or None, req.board_end or None,
+         req.other_code or None, req.other_start or None, req.other_end or None),
+    )
+    conn.commit()
+    conn.close()
+    return {"ok": True}
+
+@app.put("/api/reports/{entry_id}")
+def update_report(entry_id: int, req: DailyReportReq, user=Depends(get_current_user)):
+    conn = get_conn()
+    row = conn.execute("SELECT user_id FROM daily_reports WHERE id=?", (entry_id,)).fetchone()
+    if not row or row["user_id"] != user["id"]:
+        conn.close()
+        raise HTTPException(status_code=404, detail="記録が見つかりません。")
+    conn.execute(
+        "UPDATE daily_reports SET report_date=?, part_number=?, estimate_no=?, work_code=?, board_start=?, board_end=?, other_code=?, other_start=?, other_end=? WHERE id=?",
+        (req.report_date, req.part_number or None, req.estimate_no or None,
+         req.work_code or None, req.board_start or None, req.board_end or None,
+         req.other_code or None, req.other_start or None, req.other_end or None, entry_id),
+    )
+    conn.commit()
+    conn.close()
+    return {"ok": True}
+
+@app.delete("/api/reports/{entry_id}")
+def delete_report(entry_id: int, user=Depends(get_current_user)):
+    conn = get_conn()
+    row = conn.execute("SELECT user_id FROM daily_reports WHERE id=?", (entry_id,)).fetchone()
+    if not row or row["user_id"] != user["id"]:
+        conn.close()
+        raise HTTPException(status_code=404, detail="記録が見つかりません。")
+    conn.execute("DELETE FROM daily_reports WHERE id=?", (entry_id,))
+    conn.commit()
+    conn.close()
+    return {"ok": True}
+
+
+# ── 日報（管理者） ────────────────────────────────────────────────────────────
+
+@app.get("/api/admin/reports")
+def admin_get_reports(year: int = None, month: int = None, employee_id: str = None, department_id: int = None, user=Depends(get_current_user)):
+    require_admin(user)
+    today = datetime.now(JST).date()
+    y = year or today.year
+    m = month or today.month
+    dept = _dept_id(user) or department_id
+    conn = get_conn()
+    q = """
+        SELECT dr.id, dr.report_date, u.name, u.employee_id, d.name as department,
+               dr.part_number, dr.estimate_no, dr.work_code, dr.board_start, dr.board_end,
+               dr.other_code, dr.other_start, dr.other_end
+        FROM daily_reports dr
+        JOIN users u ON dr.user_id=u.id
+        LEFT JOIN departments d ON u.department_id=d.id
+        WHERE strftime('%Y-%m', dr.report_date)=?
+    """
+    params = [f"{y:04d}-{m:02d}"]
+    if employee_id:
+        q += " AND u.employee_id=?"
+        params.append(employee_id)
+    if dept:
+        q += " AND u.department_id=?"
+        params.append(dept)
+    q += " ORDER BY dr.report_date, u.employee_id, dr.id"
+    rows = conn.execute(q, params).fetchall()
+    conn.close()
+    return {"entries": [dict(r) for r in rows]}
+
+
 @app.get("/api/health")
 def health():
     return {"status": "ok"}
