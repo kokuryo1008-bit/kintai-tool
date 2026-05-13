@@ -993,6 +993,11 @@ class MandatoryLeaveReq(BaseModel):
     fiscal_year: int
     dates: list[str]
 
+class MandatoryLeaveBulkReq(BaseModel):
+    department_id: int
+    fiscal_year: int
+    dates: list[str]
+
 
 @app.get("/api/admin/holidays")
 def get_holidays(fiscal_year: int = None, user=Depends(get_current_user)):
@@ -1197,6 +1202,31 @@ def set_mandatory_leaves(req: MandatoryLeaveReq, user=Depends(get_current_user))
     conn.commit()
     conn.close()
     return {"ok": True, "count": len(req.dates)}
+
+
+@app.post("/api/admin/mandatory-leaves/bulk")
+def set_mandatory_leaves_bulk(req: MandatoryLeaveBulkReq, user=Depends(get_current_user)):
+    require_admin(user)
+    if user["role"] == "manager" and user.get("department_id") != req.department_id:
+        raise HTTPException(403, "自部署のみ設定できます")
+    conn = get_conn()
+    employees = conn.execute(
+        "SELECT id FROM users WHERE department_id=? AND is_active=1",
+        (req.department_id,),
+    ).fetchall()
+    for emp in employees:
+        conn.execute(
+            "DELETE FROM mandatory_leaves WHERE user_id=? AND fiscal_year=?",
+            (emp["id"], req.fiscal_year),
+        )
+        for d in req.dates:
+            conn.execute(
+                "INSERT INTO mandatory_leaves (user_id, fiscal_year, leave_date) VALUES (?,?,?)",
+                (emp["id"], req.fiscal_year, d),
+            )
+    conn.commit()
+    conn.close()
+    return {"ok": True, "employee_count": len(employees), "date_count": len(req.dates)}
 
 
 @app.get("/api/health")

@@ -1106,25 +1106,58 @@ async function importJpHolidays() {
 let mlSelectedDates = new Set();
 let mlNatHols = {};
 let mlDeptOff = new Set();
+let mlMode = 'individual';
+
+function setMlMode(mode) {
+  mlMode = mode;
+  const isIndividual = mode === 'individual';
+  document.getElementById('ml-tab-individual').style.cssText += `;background:${isIndividual?'var(--primary)':'white'};color:${isIndividual?'white':'var(--text-muted)'}`;
+  document.getElementById('ml-tab-bulk').style.cssText += `;background:${isIndividual?'white':'var(--primary)'};color:${isIndividual?'var(--text-muted)':'white'}`;
+  document.getElementById('ml-row-individual').style.display = isIndividual ? 'flex' : 'none';
+  document.getElementById('ml-row-bulk').style.display      = isIndividual ? 'none' : 'flex';
+  document.getElementById('ml-bulk-warning').style.display  = isIndividual ? 'none' : 'block';
+  mlSelectedDates.clear();
+  document.getElementById('ml-calendar-grid').innerHTML = '';
+  updateMlCount();
+}
 
 async function openMandatoryModal() {
-  const fy = parseInt(document.getElementById('annual-year').value);
+  const fy   = parseInt(document.getElementById('annual-year').value);
   const dept = document.getElementById('annual-dept').value;
   mlNatHols = annualCalData ? (annualCalData.national_holidays || {}) : {};
   mlDeptOff = annualCalData ? new Set(annualCalData.dept_off_days || []) : new Set();
 
-  const sel = document.getElementById('ml-emp-sel');
-  sel.innerHTML = '<option value="">-- 従業員を選択 --</option>';
+  // 個別 — 従業員セレクタ
+  const empSel = document.getElementById('ml-emp-sel');
+  empSel.innerHTML = '<option value="">-- 従業員を選択 --</option>';
   shiftEmployees
     .filter(e => !dept || String(e.department_id) === dept)
     .forEach(e => {
       const o = document.createElement('option');
       o.value = e.employee_id;
       o.textContent = `${e.name}（${e.department || '--'}）`;
-      sel.appendChild(o);
+      empSel.appendChild(o);
     });
+
+  // 部署一括 — 部署セレクタ
+  const deptSel = document.getElementById('ml-dept-sel');
+  deptSel.innerHTML = '<option value="">-- 部署を選択 --</option>';
+  try {
+    const res = await api('/api/departments');
+    const d = await res.json();
+    (d.departments || []).forEach(dep => {
+      const o = document.createElement('option');
+      o.value = dep.id;
+      o.textContent = dep.name;
+      if (dept && String(dep.id) === dept) o.selected = true;
+      deptSel.appendChild(o);
+    });
+  } catch(e) {}
+
   mlSelectedDates.clear();
   document.getElementById('ml-calendar-grid').innerHTML = '';
+  // モードリセット
+  setMlMode('individual');
   updateMlCount();
   document.getElementById('mandatory-modal').classList.remove('hidden');
 }
@@ -1135,7 +1168,7 @@ function closeMandatoryModal() {
 
 async function onMlEmpChange() {
   const empId = document.getElementById('ml-emp-sel').value;
-  const fy = parseInt(document.getElementById('annual-year').value);
+  const fy    = parseInt(document.getElementById('annual-year').value);
   mlSelectedDates.clear();
   if (empId) {
     try {
@@ -1145,6 +1178,13 @@ async function onMlEmpChange() {
       if (ml) ml.dates.forEach(dt => mlSelectedDates.add(dt));
     } catch(e) {}
   }
+  renderMlCalendar(fy);
+}
+
+function onMlDeptChange() {
+  // 部署一括は白紙からスタート
+  mlSelectedDates.clear();
+  const fy = parseInt(document.getElementById('annual-year').value);
   renderMlCalendar(fy);
 }
 
@@ -1197,23 +1237,50 @@ function toggleMlDate(ds, fy) {
 
 function updateMlCount() {
   const cnt = mlSelectedDates.size;
-  const badge = document.getElementById('ml-count-badge');
+  const text = `${cnt}日 / 5日必要`;
+  const bg   = cnt >= 5 ? '#ECFDF5' : '#EFF6FF';
+  const col  = cnt >= 5 ? '#059669' : 'var(--primary)';
+  ['ml-count-badge', 'ml-count-badge-bulk'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { el.textContent = text; el.style.background = bg; el.style.color = col; }
+  });
+}
+
+function updateMlCountBulk() {
+  const cnt   = mlSelectedDates.size;
+  const badge = document.getElementById('ml-count-badge-bulk');
+  if (!badge) return;
   badge.textContent = `${cnt}日 / 5日必要`;
   badge.style.background = cnt >= 5 ? '#ECFDF5' : '#EFF6FF';
-  badge.style.color = cnt >= 5 ? '#059669' : 'var(--primary)';
+  badge.style.color      = cnt >= 5 ? '#059669' : 'var(--primary)';
 }
 
 async function saveMandatoryLeaves() {
-  const empId = document.getElementById('ml-emp-sel').value;
-  const fy = parseInt(document.getElementById('annual-year').value);
-  if (!empId) { alert('従業員を選択してください'); return; }
+  const fy    = parseInt(document.getElementById('annual-year').value);
   const dates = [...mlSelectedDates].sort();
-  try {
-    await api('/api/admin/mandatory-leaves', 'POST', { employee_id: empId, fiscal_year: fy, dates });
-    alert(`${dates.length}日分の義務有給を登録しました`);
-    closeMandatoryModal();
-    loadAnnualCalendar();
-  } catch(e) { alert('保存に失敗しました'); }
+
+  if (mlMode === 'bulk') {
+    const deptId = document.getElementById('ml-dept-sel').value;
+    if (!deptId) { alert('部署を選択してください'); return; }
+    try {
+      const res = await api('/api/admin/mandatory-leaves/bulk', 'POST', {
+        department_id: parseInt(deptId), fiscal_year: fy, dates
+      });
+      const d = await res.json();
+      alert(`${d.employee_count}名 × ${dates.length}日分の義務有給を一括登録しました`);
+      closeMandatoryModal();
+      loadAnnualCalendar();
+    } catch(e) { alert('保存に失敗しました'); }
+  } else {
+    const empId = document.getElementById('ml-emp-sel').value;
+    if (!empId) { alert('従業員を選択してください'); return; }
+    try {
+      await api('/api/admin/mandatory-leaves', 'POST', { employee_id: empId, fiscal_year: fy, dates });
+      alert(`${dates.length}日分の義務有給を登録しました`);
+      closeMandatoryModal();
+      loadAnnualCalendar();
+    } catch(e) { alert('保存に失敗しました'); }
+  }
 }
 
 function openDayPanel(dateStr) {

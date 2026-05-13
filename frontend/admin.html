@@ -303,15 +303,36 @@
 
   <!-- 年5日有給登録モーダル -->
   <div id="mandatory-modal" class="modal-overlay hidden">
-    <div class="modal" style="max-width:720px;max-height:90vh;overflow-y:auto">
+    <div class="modal" style="max-width:760px;max-height:90vh;overflow-y:auto">
       <div class="modal-title">📋 年5日有給取得義務 登録</div>
-      <div style="display:flex;gap:12px;align-items:flex-end;margin-bottom:16px;flex-wrap:wrap">
+
+      <!-- モード切替 -->
+      <div style="display:flex;border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-bottom:16px">
+        <button id="ml-tab-individual" onclick="setMlMode('individual')" style="flex:1;padding:9px;border:none;cursor:pointer;font-weight:700;font-size:0.85rem;background:var(--primary);color:white">👤 個別登録</button>
+        <button id="ml-tab-bulk" onclick="setMlMode('bulk')" style="flex:1;padding:9px;border:none;cursor:pointer;font-weight:700;font-size:0.85rem;background:white;color:var(--text-muted)">👥 部署一括登録</button>
+      </div>
+
+      <!-- 個別モード -->
+      <div id="ml-row-individual" style="display:flex;gap:12px;align-items:flex-end;margin-bottom:12px;flex-wrap:wrap">
         <div class="form-group" style="margin:0;flex:1;min-width:180px">
           <label>従業員</label>
           <select id="ml-emp-sel" onchange="onMlEmpChange()" style="width:100%"></select>
         </div>
         <div id="ml-count-badge" style="padding:8px 16px;border-radius:8px;background:#EFF6FF;font-weight:700;color:var(--primary);font-size:0.9rem;white-space:nowrap">0日 / 5日必要</div>
       </div>
+
+      <!-- 部署一括モード -->
+      <div id="ml-row-bulk" style="display:none;gap:12px;align-items:flex-end;margin-bottom:12px;flex-wrap:wrap">
+        <div class="form-group" style="margin:0;flex:1;min-width:180px">
+          <label>部署</label>
+          <select id="ml-dept-sel" onchange="onMlDeptChange()" style="width:100%"></select>
+        </div>
+        <div id="ml-count-badge-bulk" style="padding:8px 16px;border-radius:8px;background:#EFF6FF;font-weight:700;color:var(--primary);font-size:0.9rem;white-space:nowrap">0日 / 5日必要</div>
+      </div>
+      <div id="ml-bulk-warning" style="display:none;background:#FFFBEB;border:1px solid #FCD34D;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:0.82rem;color:#92400E">
+        ⚠️ 選択した部署の全従業員に同じ義務有給日を一括設定します。既存の設定は上書きされます。
+      </div>
+
       <div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:10px">クリックして義務有給日を選択（緑が選択済み）。土日も選択可。祝日のみ選択不可。</div>
       <div id="ml-calendar-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:8px"></div>
       <div class="modal-footer">
