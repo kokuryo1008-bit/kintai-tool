@@ -912,6 +912,293 @@ def admin_get_annual_shifts(year: int = None, department_id: int = None, user=De
     return {"shifts": [dict(r) for r in rows]}
 
 
+# ── 年度カレンダー・祝日管理 ───────────────────────────────────────────────────
+
+def _jp_holidays(year: int) -> dict:
+    """日本の国民の祝日 {date_str: name}"""
+    h: dict = {}
+
+    def add(mo: int, d: int, name: str):
+        try:
+            h[date(year, mo, d).isoformat()] = name
+        except ValueError:
+            pass
+
+    def nth_monday(mo: int, n: int) -> date:
+        first = date(year, mo, 1)
+        offset = (0 - first.weekday()) % 7
+        return first + timedelta(days=offset + 7 * (n - 1))
+
+    add(1, 1, "元日")
+    add(2, 11, "建国記念の日")
+    if year >= 2020:
+        add(2, 23, "天皇誕生日")
+    else:
+        add(12, 23, "天皇誕生日")
+    add(4, 29, "昭和の日")
+    add(5, 3, "憲法記念日")
+    add(5, 4, "みどりの日")
+    add(5, 5, "こどもの日")
+    if year >= 2016:
+        add(8, 11, "山の日")
+    add(11, 3, "文化の日")
+    add(11, 23, "勤労感謝の日")
+
+    nm = nth_monday(1, 2);  add(nm.month, nm.day, "成人の日")
+    nm = nth_monday(7, 3);  add(nm.month, nm.day, "海の日")
+    nm = nth_monday(9, 3);  add(nm.month, nm.day, "敬老の日")
+    if year >= 2020:
+        nm = nth_monday(10, 2); add(nm.month, nm.day, "スポーツの日")
+    else:
+        nm = nth_monday(10, 2); add(nm.month, nm.day, "体育の日")
+
+    if 1980 <= year <= 2099:
+        shunbun = int(20.8431 + 0.242194 * (year - 1980) - int((year - 1980) / 4))
+        shubun  = int(23.2488 + 0.242194 * (year - 1980) - int((year - 1980) / 4))
+        add(3, shunbun, "春分の日")
+        add(9, shubun,  "秋分の日")
+
+    subs: dict = {}
+    for ds in sorted(h):
+        d_obj = date.fromisoformat(ds)
+        if d_obj.weekday() == 6:  # 日曜
+            nxt = d_obj + timedelta(days=1)
+            while nxt.isoformat() in h or nxt.isoformat() in subs:
+                nxt += timedelta(days=1)
+            subs[nxt.isoformat()] = "振替休日"
+    h.update(subs)
+
+    all_h = set(h)
+    for ds in list(all_h):
+        d_obj = date.fromisoformat(ds)
+        prev2 = (d_obj - timedelta(days=2)).isoformat()
+        mid   = (d_obj - timedelta(days=1)).isoformat()
+        if prev2 in all_h and mid not in all_h:
+            mid_obj = date.fromisoformat(mid)
+            if mid_obj.weekday() != 6:
+                h[mid] = "国民の休日"
+
+    return h
+
+
+class HolidayReq(BaseModel):
+    holiday_date: str
+    name: str
+
+class HolidayImportReq(BaseModel):
+    fiscal_year: int
+
+class MandatoryLeaveReq(BaseModel):
+    employee_id: str
+    fiscal_year: int
+    dates: list[str]
+
+
+@app.get("/api/admin/holidays")
+def get_holidays(fiscal_year: int = None, user=Depends(get_current_user)):
+    require_admin(user)
+    conn = get_conn()
+    if fiscal_year:
+        rows = conn.execute(
+            "SELECT id, holiday_date, name FROM holidays WHERE holiday_date BETWEEN ? AND ? ORDER BY holiday_date",
+            (f"{fiscal_year}-04-01", f"{fiscal_year+1}-03-31"),
+        ).fetchall()
+    else:
+        rows = conn.execute("SELECT id, holiday_date, name FROM holidays ORDER BY holiday_date").fetchall()
+    conn.close()
+    return {"holidays": [dict(r) for r in rows]}
+
+
+@app.post("/api/admin/holidays")
+def add_holiday(req: HolidayReq, user=Depends(get_current_user)):
+    require_admin(user)
+    conn = get_conn()
+    try:
+        conn.execute(
+            "INSERT INTO holidays (holiday_date, name) VALUES (?,?) ON CONFLICT(holiday_date) DO NOTHING",
+            (req.holiday_date, req.name),
+        )
+        conn.commit()
+    except Exception:
+        try: conn.rollback()
+        except Exception: pass
+        raise HTTPException(400, "登録に失敗しました")
+    conn.close()
+    return {"ok": True}
+
+
+@app.delete("/api/admin/holidays/{holiday_id}")
+def delete_holiday(holiday_id: int, user=Depends(get_current_user)):
+    require_admin(user)
+    conn = get_conn()
+    conn.execute("DELETE FROM holidays WHERE id=?", (holiday_id,))
+    conn.commit()
+    conn.close()
+    return {"ok": True}
+
+
+@app.post("/api/admin/holidays/import")
+def import_holidays(req: HolidayImportReq, user=Depends(get_current_user)):
+    require_admin(user)
+    fy = req.fiscal_year
+    all_hols = {**_jp_holidays(fy), **_jp_holidays(fy + 1)}
+    start, end = f"{fy}-04-01", f"{fy+1}-03-31"
+    filtered = {k: v for k, v in all_hols.items() if start <= k <= end}
+    conn = get_conn()
+    for date_str, name in filtered.items():
+        try:
+            conn.execute(
+                "INSERT INTO holidays (holiday_date, name) VALUES (?,?) ON CONFLICT(holiday_date) DO NOTHING",
+                (date_str, name),
+            )
+        except Exception:
+            pass
+    conn.commit()
+    conn.close()
+    return {"ok": True, "count": len(filtered), "holidays": filtered}
+
+
+@app.get("/api/admin/calendar/annual")
+def admin_annual_calendar(fiscal_year: int = None, department_id: int = None, user=Depends(get_current_user)):
+    require_admin(user)
+    now_jst = datetime.now(JST)
+    fy = fiscal_year or (now_jst.year if now_jst.month >= 4 else now_jst.year - 1)
+    dept = _dept_id(user) or department_id
+    start_date, end_date = f"{fy}-04-01", f"{fy+1}-03-31"
+    conn = get_conn()
+
+    hol_rows = conn.execute(
+        "SELECT id, holiday_date, name FROM holidays WHERE holiday_date BETWEEN ? AND ? ORDER BY holiday_date",
+        (start_date, end_date),
+    ).fetchall()
+    national_holidays = {r["holiday_date"]: {"id": r["id"], "name": r["name"]} for r in hol_rows}
+
+    dept_off: set = set()
+    if dept:
+        dr = conn.execute("SELECT weekly_off_days FROM departments WHERE id=?", (dept,)).fetchone()
+        if dr and dr["weekly_off_days"]:
+            dept_off = {int(x) for x in dr["weekly_off_days"].split(",") if x.strip()}
+
+    q = """
+        SELECT s.id, s.shift_date, s.start_time, s.end_time,
+               u.employee_id, u.name, d.name as department
+        FROM shifts s JOIN users u ON s.user_id=u.id
+        LEFT JOIN departments d ON u.department_id=d.id
+        WHERE s.shift_date BETWEEN ? AND ?
+    """
+    params: list = [start_date, end_date]
+    if dept:
+        q += " AND u.department_id=?"
+        params.append(dept)
+    shift_rows = conn.execute(q, params).fetchall()
+    shift_map: dict = {}
+    for s in shift_rows:
+        sd = s["shift_date"]
+        if sd not in shift_map:
+            shift_map[sd] = []
+        shift_map[sd].append(dict(s))
+
+    ml_q = """
+        SELECT u.employee_id, ml.leave_date
+        FROM mandatory_leaves ml JOIN users u ON ml.user_id=u.id
+        WHERE ml.fiscal_year=?
+    """
+    ml_p: list = [fy]
+    if dept:
+        ml_q += " AND u.department_id=?"
+        ml_p.append(dept)
+    ml_rows = conn.execute(ml_q, ml_p).fetchall()
+    mandatory_map: dict = {}
+    for r in ml_rows:
+        ds = r["leave_date"]
+        if ds not in mandatory_map:
+            mandatory_map[ds] = []
+        mandatory_map[ds].append(r["employee_id"])
+
+    months = []
+    total_work = total_hol = 0
+    for i in range(12):
+        mo = 4 + i if 4 + i <= 12 else 4 + i - 12
+        yr = fy if mo >= 4 else fy + 1
+        days_in_mo = (date(yr, mo % 12 + 1, 1) - timedelta(days=1)).day if mo < 12 else 31
+        work = hol = 0
+        for d_num in range(1, days_in_mo + 1):
+            ds = f"{yr}-{mo:02d}-{d_num:02d}"
+            dow_js = (date(yr, mo, d_num).weekday() + 1) % 7  # 0=Sun,6=Sat
+            if dow_js in {0, 6} or dow_js in dept_off or ds in national_holidays:
+                hol += 1
+            else:
+                work += 1
+        total_work += work
+        total_hol += hol
+        months.append({"year": yr, "month": mo, "work_days": work, "holiday_days": hol})
+
+    conn.close()
+    return {
+        "fiscal_year": fy,
+        "national_holidays": national_holidays,
+        "dept_off_days": list(dept_off),
+        "shift_map": shift_map,
+        "mandatory_map": mandatory_map,
+        "months": months,
+        "total_work_days": total_work,
+        "total_holiday_days": total_hol,
+    }
+
+
+@app.get("/api/admin/mandatory-leaves")
+def get_mandatory_leaves(fiscal_year: int, employee_id: str = None, user=Depends(get_current_user)):
+    require_admin(user)
+    dept = _dept_id(user)
+    conn = get_conn()
+    q = """
+        SELECT u.employee_id, u.name, ml.leave_date
+        FROM mandatory_leaves ml JOIN users u ON ml.user_id=u.id
+        WHERE ml.fiscal_year=?
+    """
+    params: list = [fiscal_year]
+    if employee_id:
+        q += " AND u.employee_id=?"
+        params.append(employee_id)
+    if dept:
+        q += " AND u.department_id=?"
+        params.append(dept)
+    rows = conn.execute(q, params).fetchall()
+    conn.close()
+    result: dict = {}
+    for r in rows:
+        eid = r["employee_id"]
+        if eid not in result:
+            result[eid] = {"name": r["name"], "dates": []}
+        result[eid]["dates"].append(r["leave_date"])
+    return {"mandatory_leaves": result}
+
+
+@app.post("/api/admin/mandatory-leaves")
+def set_mandatory_leaves(req: MandatoryLeaveReq, user=Depends(get_current_user)):
+    require_admin(user)
+    conn = get_conn()
+    target = conn.execute(
+        "SELECT id, department_id FROM users WHERE employee_id=? AND is_active=1", (req.employee_id,)
+    ).fetchone()
+    if not target:
+        raise HTTPException(404, "従業員が見つかりません")
+    if user["role"] == "manager" and user.get("department_id") != target["department_id"]:
+        raise HTTPException(403, "自部署のみ設定できます")
+    conn.execute(
+        "DELETE FROM mandatory_leaves WHERE user_id=? AND fiscal_year=?",
+        (target["id"], req.fiscal_year),
+    )
+    for d in req.dates:
+        conn.execute(
+            "INSERT INTO mandatory_leaves (user_id, fiscal_year, leave_date) VALUES (?,?,?)",
+            (target["id"], req.fiscal_year, d),
+        )
+    conn.commit()
+    conn.close()
+    return {"ok": True, "count": len(req.dates)}
+
+
 @app.get("/api/health")
 def health():
     return {"status": "ok"}

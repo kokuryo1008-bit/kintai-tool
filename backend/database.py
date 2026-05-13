@@ -223,6 +223,22 @@ CREATE TABLE IF NOT EXISTS shift_templates (
     start_time  TEXT NOT NULL,
     end_time    TEXT NOT NULL,
     created_at  TEXT DEFAULT (datetime('now','localtime'))
+);
+
+CREATE TABLE IF NOT EXISTS holidays (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    holiday_date TEXT NOT NULL UNIQUE,
+    name         TEXT NOT NULL,
+    created_at   TEXT DEFAULT (datetime('now','localtime'))
+);
+
+CREATE TABLE IF NOT EXISTS mandatory_leaves (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id     INTEGER NOT NULL REFERENCES users(id),
+    fiscal_year INTEGER NOT NULL,
+    leave_date  TEXT NOT NULL,
+    created_at  TEXT DEFAULT (datetime('now','localtime')),
+    UNIQUE(user_id, leave_date)
 )
 """
 

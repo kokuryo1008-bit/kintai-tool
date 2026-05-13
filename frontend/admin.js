@@ -629,10 +629,12 @@ async function initShifts() {
   const annYearSel = document.getElementById('annual-year');
   if (!annYearSel.options.length) {
     const now = new Date();
-    for (let y = now.getFullYear() - 1; y <= now.getFullYear() + 1; y++) {
+    const curFy = now.getMonth() >= 3 ? now.getFullYear() : now.getFullYear() - 1;
+    for (let fy = curFy - 1; fy <= curFy + 2; fy++) {
       const o = document.createElement('option');
-      o.value = y; o.textContent = y + '年';
-      if (y === now.getFullYear()) o.selected = true;
+      o.value = fy;
+      o.textContent = `${fy}年度 (${fy}年4月〜${fy+1}年3月)`;
+      if (fy === curFy) o.selected = true;
       annYearSel.appendChild(o);
     }
   }
@@ -933,6 +935,7 @@ async function saveHolidays() {
 
 let annualShiftMap = {};
 let annualEmps = [];
+let annualCalData = null;
 
 function showShiftTab(tab) {
   ['monthly', 'annual'].forEach(t => {
@@ -943,83 +946,274 @@ function showShiftTab(tab) {
 }
 
 async function loadAnnualCalendar() {
-  const year = parseInt(document.getElementById('annual-year').value);
+  const fy = parseInt(document.getElementById('annual-year').value);
   const dept = document.getElementById('annual-dept').value;
 
-  let shiftUrl = `/api/admin/shifts/annual?year=${year}`;
-  if (dept) shiftUrl += `&department_id=${dept}`;
-
-  let empUrl = '/api/admin/employees';
-  if (dept) empUrl += `?department_id=${dept}`;
+  let calUrl = `/api/admin/calendar/annual?fiscal_year=${fy}`;
+  if (dept) calUrl += `&department_id=${dept}`;
+  let empUrl = dept ? `/api/admin/employees?department_id=${dept}` : '/api/admin/employees';
 
   try {
-    const [shiftRes, empRes] = await Promise.all([api(shiftUrl), api(empUrl)]);
-    const shiftD = await shiftRes.json();
+    const [calRes, empRes] = await Promise.all([api(calUrl), api(empUrl)]);
+    const calD = await calRes.json();
     const empD = await empRes.json();
-
-    annualShiftMap = {};
-    (shiftD.shifts || []).forEach(s => {
-      if (!annualShiftMap[s.shift_date]) annualShiftMap[s.shift_date] = [];
-      annualShiftMap[s.shift_date].push(s);
-    });
+    annualCalData = calD;
+    annualShiftMap = calD.shift_map || {};
     annualEmps = dept ? (empD.employees || []) : [];
-    renderAnnualCalendar(year);
+    renderAnnualCalendar(calD);
+    loadAnnualHolidays(fy);
   } catch(e) {}
 }
 
-function renderAnnualCalendar(year) {
+function renderAnnualCalendar(data) {
   const grid = document.getElementById('annual-calendar-grid');
-  const today = new Date().toISOString().slice(0, 10);
-  const deptId = parseInt(document.getElementById('annual-dept').value) || null;
-  const holidays = deptId && deptHolidayMap[deptId] ? deptHolidayMap[deptId] : [];
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const natHols = data.national_holidays || {};
+  const deptOff = new Set(data.dept_off_days || []);
+  const mandMap = data.mandatory_map || {};
+  const months  = data.months || [];
+
+  // サマリー更新
+  const sumEl = document.getElementById('annual-summary');
+  sumEl.style.display = 'block';
+  document.getElementById('ann-workdays').textContent = data.total_work_days ?? '--';
+  document.getElementById('ann-holidays').textContent = data.total_holiday_days ?? '--';
+  document.getElementById('ann-national').textContent = Object.keys(natHols).length;
+
   grid.innerHTML = '';
 
-  for (let m = 1; m <= 12; m++) {
-    const daysInMonth = new Date(year, m, 0).getDate();
-    const firstDow = new Date(year, m - 1, 1).getDay();
+  months.forEach(({ year, month, work_days, holiday_days }) => {
+    const daysInMonth = new Date(year, month, 0).getDate();
+    const firstDow    = new Date(year, month - 1, 1).getDay();
+
     const card = document.createElement('div');
     card.style.cssText = 'background:white;border-radius:12px;border:1px solid var(--border);padding:14px;box-shadow:0 1px 4px rgba(0,0,0,.06)';
 
-    let html = `<div style="font-size:0.95rem;font-weight:800;color:var(--primary);margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--border)">${m}月</div>`;
-    html += '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:1px">';
-
+    let html = `
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--border)">
+        <span style="font-size:0.95rem;font-weight:800;color:var(--primary)">${month}月</span>
+        <span style="font-size:0.72rem;color:var(--text-muted)">${year}年</span>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:1px;margin-bottom:6px">
+    `;
     ['日','月','火','水','木','金','土'].forEach((d, i) => {
-      const c = i === 0 ? 'var(--danger)' : i === 6 ? 'var(--primary-light)' : 'var(--text-muted)';
-      html += `<div style="text-align:center;color:${c};font-weight:700;font-size:0.68rem;padding:2px 0">${d}</div>`;
+      const c = i===0 ? '#E53E3E' : i===6 ? '#3B82F6' : 'var(--text-muted)';
+      html += `<div style="text-align:center;color:${c};font-weight:700;font-size:0.62rem;padding:2px 0">${d}</div>`;
     });
 
     for (let i = 0; i < firstDow; i++) html += '<div></div>';
 
     for (let d = 1; d <= daysInMonth; d++) {
       const dow = (firstDow + d - 1) % 7;
-      const dateStr = `${year}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-      const isToday = dateStr === today;
-      const isSun = dow === 0, isSat = dow === 6;
-      const isHoliday = holidays.includes(dow);
-      const cnt = (annualShiftMap[dateStr] || []).length;
-      const bg = isToday ? '#DBEAFE'
-        : isHoliday ? '#F1F5F9'
-        : isSun ? '#FFF0F0'
-        : isSat ? '#F0F5FF'
-        : 'transparent';
-      const nc = isHoliday ? 'var(--text-muted)'
-        : isSun ? 'var(--danger)'
-        : isSat ? 'var(--primary-light)'
-        : 'var(--text)';
+      const dateStr = `${year}-${String(month).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+      const isToday  = dateStr === todayStr;
+      const isSun    = dow === 0;
+      const isSat    = dow === 6;
+      const isDeptOff = deptOff.has(dow);
+      const natHol   = natHols[dateStr];
+      const shiftCnt = (annualShiftMap[dateStr] || []).length;
+      const mandCnt  = (mandMap[dateStr] || []).length;
 
-      html += `<div onclick="openDayPanel('${dateStr}')" title="${dateStr}${isHoliday?' (定休日)':''}" style="text-align:center;padding:2px 1px;border-radius:4px;cursor:pointer;background:${bg}">
-        <div style="color:${nc};font-weight:${isToday?700:400};font-size:0.72rem;${isHoliday?'text-decoration:line-through':''}">${d}</div>
-        ${cnt
-          ? `<div style="background:var(--accent);color:white;border-radius:3px;font-size:0.6rem;font-weight:700;line-height:14px">${cnt}</div>`
-          : isHoliday
-            ? `<div style="font-size:0.58rem;color:var(--text-muted);line-height:14px">休</div>`
-            : '<div style="height:14px"></div>'}
+      let bg, nc;
+      if (isToday)       { bg='#DBEAFE'; nc='var(--primary)'; }
+      else if (natHol)   { bg='#FFF0F0'; nc='#C53030'; }
+      else if (isDeptOff){ bg='#F1F5F9'; nc='var(--text-muted)'; }
+      else if (isSun)    { bg='#FFF8F8'; nc='#E53E3E'; }
+      else if (isSat)    { bg='#F0F5FF'; nc='#3B82F6'; }
+      else               { bg='transparent'; nc='var(--text)'; }
+
+      let badge;
+      if (shiftCnt > 0) {
+        badge = `<div style="background:var(--accent);color:white;border-radius:3px;font-size:0.58rem;font-weight:700;line-height:13px">${shiftCnt}</div>`;
+      } else if (natHol) {
+        badge = `<div style="font-size:0.55rem;color:#C53030;line-height:13px" title="${natHol.name}">祝</div>`;
+      } else if (isDeptOff) {
+        badge = `<div style="font-size:0.55rem;color:var(--text-muted);line-height:13px">休</div>`;
+      } else {
+        badge = '<div style="height:13px"></div>';
+      }
+      if (mandCnt > 0) {
+        badge += `<div style="background:#10B981;color:white;border-radius:2px;font-size:0.5rem;font-weight:700;line-height:11px">有</div>`;
+      }
+
+      const tip = natHol ? `${dateStr}（${natHol.name}）` : dateStr;
+      html += `<div onclick="openDayPanel('${dateStr}')" title="${tip}" style="text-align:center;padding:2px 1px;border-radius:4px;cursor:pointer;background:${bg}">
+        <div style="color:${nc};font-weight:${isToday?700:400};font-size:0.68rem">${d}</div>
+        ${badge}
       </div>`;
+    }
+    html += `</div>
+      <div style="display:flex;justify-content:space-between;padding-top:6px;border-top:1px solid var(--border);font-size:0.74rem">
+        <span style="color:var(--primary);font-weight:700">出勤 ${work_days}日</span>
+        <span style="color:var(--text-muted)">休日 ${holiday_days}日</span>
+      </div>`;
+    card.innerHTML = html;
+    grid.appendChild(card);
+  });
+}
+
+// ── 祝日管理 ─────────────────────────────────────────────────────────────────
+
+async function loadAnnualHolidays(fy) {
+  const fiscalYear = fy ?? parseInt(document.getElementById('annual-year').value);
+  try {
+    const res = await api(`/api/admin/holidays?fiscal_year=${fiscalYear}`);
+    const d = await res.json();
+    const list = document.getElementById('nhol-list');
+    list.innerHTML = '';
+    const hols = d.holidays || [];
+    if (!hols.length) {
+      list.innerHTML = '<span style="font-size:0.82rem;color:var(--text-muted)">祝日未登録。「国民の祝日を自動インポート」で一括登録できます。</span>';
+      return;
+    }
+    hols.forEach(h => {
+      const chip = document.createElement('span');
+      chip.style.cssText = 'display:inline-flex;align-items:center;gap:4px;background:#FFF5F5;border:1px solid #FEB2B2;border-radius:16px;padding:3px 10px;font-size:0.76rem;color:#C53030';
+      chip.innerHTML = `${h.holiday_date} ${h.name} <span onclick="deleteNationalHoliday(${h.id})" style="cursor:pointer;font-weight:700;color:#E53E3E">×</span>`;
+      list.appendChild(chip);
+    });
+  } catch(e) {}
+}
+
+async function addNationalHoliday() {
+  const dt = document.getElementById('nhol-date').value;
+  const name = document.getElementById('nhol-name').value.trim();
+  if (!dt || !name) { alert('日付と名称を入力してください'); return; }
+  await api('/api/admin/holidays', 'POST', { holiday_date: dt, name });
+  document.getElementById('nhol-date').value = '';
+  document.getElementById('nhol-name').value = '';
+  const fy = parseInt(document.getElementById('annual-year').value);
+  loadAnnualHolidays(fy);
+}
+
+async function deleteNationalHoliday(id) {
+  await api(`/api/admin/holidays/${id}`, 'DELETE');
+  const fy = parseInt(document.getElementById('annual-year').value);
+  loadAnnualHolidays(fy);
+}
+
+async function importJpHolidays() {
+  const fy = parseInt(document.getElementById('annual-year').value);
+  const res = await api('/api/admin/holidays/import', 'POST', { fiscal_year: fy });
+  const d = await res.json();
+  alert(`${d.count || 0}件の国民の祝日をインポートしました`);
+  loadAnnualHolidays(fy);
+  loadAnnualCalendar();
+}
+
+// ── 年5日有給取得義務 ─────────────────────────────────────────────────────────
+
+let mlSelectedDates = new Set();
+let mlNatHols = {};
+let mlDeptOff = new Set();
+
+async function openMandatoryModal() {
+  const fy = parseInt(document.getElementById('annual-year').value);
+  const dept = document.getElementById('annual-dept').value;
+  mlNatHols = annualCalData ? (annualCalData.national_holidays || {}) : {};
+  mlDeptOff = annualCalData ? new Set(annualCalData.dept_off_days || []) : new Set();
+
+  const sel = document.getElementById('ml-emp-sel');
+  sel.innerHTML = '<option value="">-- 従業員を選択 --</option>';
+  shiftEmployees
+    .filter(e => !dept || String(e.department_id) === dept)
+    .forEach(e => {
+      const o = document.createElement('option');
+      o.value = e.employee_id;
+      o.textContent = `${e.name}（${e.department || '--'}）`;
+      sel.appendChild(o);
+    });
+  mlSelectedDates.clear();
+  document.getElementById('ml-calendar-grid').innerHTML = '';
+  updateMlCount();
+  document.getElementById('mandatory-modal').classList.remove('hidden');
+}
+
+function closeMandatoryModal() {
+  document.getElementById('mandatory-modal').classList.add('hidden');
+}
+
+async function onMlEmpChange() {
+  const empId = document.getElementById('ml-emp-sel').value;
+  const fy = parseInt(document.getElementById('annual-year').value);
+  mlSelectedDates.clear();
+  if (empId) {
+    try {
+      const res = await api(`/api/admin/mandatory-leaves?fiscal_year=${fy}&employee_id=${empId}`);
+      const d = await res.json();
+      const ml = (d.mandatory_leaves || {})[empId];
+      if (ml) ml.dates.forEach(dt => mlSelectedDates.add(dt));
+    } catch(e) {}
+  }
+  renderMlCalendar(fy);
+}
+
+function renderMlCalendar(fy) {
+  const grid = document.getElementById('ml-calendar-grid');
+  grid.innerHTML = '';
+  for (let i = 0; i < 12; i++) {
+    const mo = i < 9 ? 4 + i : 4 + i - 12;
+    const yr = mo >= 4 ? fy : fy + 1;
+    const daysInMonth = new Date(yr, mo, 0).getDate();
+    const firstDow = new Date(yr, mo - 1, 1).getDay();
+    const card = document.createElement('div');
+    card.style.cssText = 'background:#F8FAFC;border-radius:8px;padding:8px;border:1px solid var(--border)';
+    let html = `<div style="font-size:0.82rem;font-weight:700;color:var(--primary);margin-bottom:5px">${yr}年${mo}月</div>`;
+    html += '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:1px">';
+    ['日','月','火','水','木','金','土'].forEach((d, i) => {
+      const c = i===0?'#E53E3E':i===6?'#3B82F6':'var(--text-muted)';
+      html += `<div style="text-align:center;font-size:0.6rem;color:${c};font-weight:600">${d}</div>`;
+    });
+    for (let i = 0; i < firstDow; i++) html += '<div></div>';
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dow = (firstDow + d - 1) % 7;
+      const ds = `${yr}-${String(mo).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+      const isWkend = dow === 0 || dow === 6;
+      const isDeptOff = mlDeptOff.has(dow);
+      const isNatHol = !!mlNatHols[ds];
+      const isNonWork = isWkend || isDeptOff || isNatHol;
+      const isSel = mlSelectedDates.has(ds);
+      if (isNonWork) {
+        const c = dow===0?'#FCA5A5':isNatHol?'#FCA5A5':'#93C5FD';
+        html += `<div style="text-align:center;font-size:0.6rem;color:${c};padding:1px" title="${isNatHol?mlNatHols[ds].name:''}">${d}</div>`;
+      } else {
+        const bg = isSel ? '#10B981' : '#fff';
+        const tc = isSel ? 'white' : 'var(--text)';
+        html += `<div onclick="toggleMlDate('${ds}',${fy})" style="text-align:center;font-size:0.62rem;background:${bg};color:${tc};border-radius:3px;padding:2px 1px;cursor:pointer;border:1px solid ${isSel?'#10B981':'#E2E8F0'}">${d}</div>`;
+      }
     }
     html += '</div>';
     card.innerHTML = html;
     grid.appendChild(card);
   }
+  updateMlCount();
+}
+
+function toggleMlDate(ds, fy) {
+  if (mlSelectedDates.has(ds)) mlSelectedDates.delete(ds);
+  else mlSelectedDates.add(ds);
+  renderMlCalendar(fy);
+}
+
+function updateMlCount() {
+  const cnt = mlSelectedDates.size;
+  const badge = document.getElementById('ml-count-badge');
+  badge.textContent = `${cnt}日 / 5日必要`;
+  badge.style.background = cnt >= 5 ? '#ECFDF5' : '#EFF6FF';
+  badge.style.color = cnt >= 5 ? '#059669' : 'var(--primary)';
+}
+
+async function saveMandatoryLeaves() {
+  const empId = document.getElementById('ml-emp-sel').value;
+  const fy = parseInt(document.getElementById('annual-year').value);
+  if (!empId) { alert('従業員を選択してください'); return; }
+  const dates = [...mlSelectedDates].sort();
+  try {
+    await api('/api/admin/mandatory-leaves', 'POST', { employee_id: empId, fiscal_year: fy, dates });
+    alert(`${dates.length}日分の義務有給を登録しました`);
+    closeMandatoryModal();
+    loadAnnualCalendar();
+  } catch(e) { alert('保存に失敗しました'); }
 }
 
 function openDayPanel(dateStr) {
