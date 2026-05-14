@@ -1942,18 +1942,19 @@ async function rejectOvertime(id) {
 }
 
 async function openOvertimeSubmitModal() {
-  // 自部署の従業員一覧をセレクトに設定
   try {
     const res = await api('/api/admin/employees');
     const d = await res.json();
-    const sel = document.getElementById('ot-emp-sel');
-    sel.innerHTML = '<option value="">-- 従業員を選択 --</option>';
+    const list = document.getElementById('ot-emp-list');
+    list.innerHTML = '';
     (d.employees || []).forEach(e => {
-      const o = document.createElement('option');
-      o.value = e.employee_id;
-      o.textContent = `${e.name}（${e.department||'--'}）`;
-      sel.appendChild(o);
+      const label = document.createElement('label');
+      label.style.cssText = 'display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:6px;cursor:pointer;font-size:0.88rem';
+      label.innerHTML = `<input type="checkbox" class="ot-emp-cb" value="${e.employee_id}" onchange="updateOtEmpCount()" style="width:16px;height:16px;cursor:pointer">
+        <span style="font-weight:600">${e.name}</span><span style="color:var(--text-muted);font-size:0.78rem">${e.department||''}</span>`;
+      list.appendChild(label);
     });
+    updateOtEmpCount();
   } catch(e) {}
   const today = new Date().toISOString().slice(0, 10);
   document.getElementById('ot-sub-date').value = today;
@@ -1962,28 +1963,46 @@ async function openOvertimeSubmitModal() {
   document.getElementById('overtime-submit-modal').classList.remove('hidden');
 }
 
+function otCheckAll(checked) {
+  document.querySelectorAll('.ot-emp-cb').forEach(cb => cb.checked = checked);
+  updateOtEmpCount();
+}
+
+function updateOtEmpCount() {
+  const n = document.querySelectorAll('.ot-emp-cb:checked').length;
+  document.getElementById('ot-emp-count').textContent = n ? `${n}名選択中` : '';
+}
+
 function closeOvertimeSubmitModal() {
   document.getElementById('overtime-submit-modal').classList.add('hidden');
 }
 
 async function submitOvertime() {
-  const empId = document.getElementById('ot-emp-sel').value;
+  const checked = [...document.querySelectorAll('.ot-emp-cb:checked')].map(cb => cb.value);
   const date = document.getElementById('ot-sub-date').value;
-  if (!empId) { alert('従業員を選択してください'); return; }
+  if (!checked.length) { alert('従業員を1名以上選択してください'); return; }
   if (!date) { alert('日付を入力してください'); return; }
-  const body = {
-    employee_id: empId,
-    work_date: date,
-    planned_end: document.getElementById('ot-sub-end').value || null,
-    reason: document.getElementById('ot-sub-reason').value.trim() || null,
-  };
-  try {
-    const res = await api('/api/overtime', 'POST', body);
-    const d = await res.json();
-    if (!res.ok) { alert(d.detail || 'エラーが発生しました'); return; }
-    closeOvertimeSubmitModal();
-    loadAdminOvertime();
-  } catch(e) { alert('通信エラーが発生しました'); }
+  const plannedEnd = document.getElementById('ot-sub-end').value || null;
+  const reason = document.getElementById('ot-sub-reason').value.trim() || null;
+
+  const errors = [];
+  for (const empId of checked) {
+    try {
+      const res = await api('/api/overtime', 'POST', { employee_id: empId, work_date: date, planned_end: plannedEnd, reason });
+      if (!res.ok) {
+        const d = await res.json();
+        errors.push(d.detail || 'エラー');
+      }
+    } catch(e) { errors.push('通信エラー'); }
+  }
+
+  closeOvertimeSubmitModal();
+  loadAdminOvertime();
+  if (errors.length) {
+    alert(`${checked.length - errors.length}件申請完了。${errors.length}件エラー:\n` + errors.join('\n'));
+  } else {
+    alert(`${checked.length}名分の残業申請を送信しました`);
+  }
 }
 
 async function deleteOvertimeAdmin(id) {
