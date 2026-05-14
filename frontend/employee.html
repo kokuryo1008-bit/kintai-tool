@@ -69,6 +69,7 @@
         <button class="tab-btn active" onclick="showTab('history')">勤務履歴</button>
         <button class="tab-btn" onclick="showTab('leave')">有給申請</button>
         <button class="tab-btn" onclick="showTab('report')">日報</button>
+        <button class="tab-btn" onclick="showTab('sales')">営業報告</button>
       </div>
 
       <!-- 勤務履歴 -->
@@ -121,6 +122,17 @@
         </div>
       </div>
 
+      <!-- 営業報告 -->
+      <div id="tab-sales" class="hidden">
+        <div style="display:flex;gap:8px;margin-bottom:12px;align-items:center;flex-wrap:wrap">
+          <select id="sale-year" style="width:auto"></select>
+          <select id="sale-month" style="width:auto"></select>
+          <button class="btn-outline btn-sm" onclick="loadSales()">表示</button>
+          <button class="btn-primary" style="width:auto;padding:8px 16px;font-size:0.85rem;margin-left:auto" onclick="openSalesModal()">＋ 新規入力</button>
+        </div>
+        <div id="sales-list"></div>
+      </div>
+
       <!-- 有給申請 -->
       <div id="tab-leave" class="hidden">
         <div style="background:#D1FAE5;border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:0.88rem">
@@ -167,6 +179,36 @@
       <div class="modal-footer">
         <button class="btn-outline" onclick="closeReportModal()">キャンセル</button>
         <button class="btn-primary" style="width:auto;padding:10px 24px" onclick="saveReport()">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 営業報告 モーダル -->
+  <div id="sales-modal" class="modal-overlay hidden">
+    <div class="modal" style="max-width:480px">
+      <div class="modal-title" id="sales-modal-title">営業報告 入力</div>
+      <input type="hidden" id="sale-entry-id">
+      <div class="form-group"><label>日付</label><input type="date" id="sale-date"></div>
+      <div class="form-group"><label>会社名 <span style="color:var(--danger)">*</span></label><input type="text" id="sale-company" placeholder="例: 株式会社ABC"></div>
+      <div class="form-group"><label>担当部署</label><input type="text" id="sale-dept" placeholder="例: 購買部"></div>
+      <div class="form-group"><label>担当者名</label><input type="text" id="sale-person" placeholder="例: 山田 太郎"></div>
+      <div class="form-group"><label>訪問目的</label><input type="text" id="sale-purpose" placeholder="例: 新規提案"></div>
+      <div class="form-group"><label>話の内容</label><textarea id="sale-content" rows="3" placeholder="商談内容・要件など" style="width:100%;resize:vertical"></textarea></div>
+      <div class="form-group"><label>金額（円）</label><input type="number" id="sale-amount" min="0" placeholder="例: 500000"></div>
+      <div class="form-group"><label>ステータス</label>
+        <select id="sale-status" style="width:100%">
+          <option value="商談中">商談中</option>
+          <option value="提案済">提案済</option>
+          <option value="受注">受注</option>
+          <option value="失注">失注</option>
+          <option value="保留">保留</option>
+        </select>
+      </div>
+      <div class="form-group"><label>次回アクション</label><input type="text" id="sale-next-action" placeholder="例: 見積書送付"></div>
+      <div class="form-group"><label>次回予定日</label><input type="date" id="sale-next-date"></div>
+      <div class="modal-footer">
+        <button class="btn-outline" onclick="closeSalesModal()">キャンセル</button>
+        <button class="btn-primary" style="width:auto;padding:10px 24px" onclick="saveSales()">保存</button>
       </div>
     </div>
   </div>

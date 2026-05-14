@@ -48,7 +48,7 @@ function resetPin() {
 
 // ── セクション切り替え ──
 function showSection(sec) {
-  ['dashboard','employees','attendance','leave','trip','shifts','reports','settings'].forEach(s => {
+  ['dashboard','employees','attendance','leave','trip','shifts','reports','sales','settings'].forEach(s => {
     document.getElementById('section-' + s).classList.toggle('hidden', s !== sec);
     document.getElementById('nav-' + s).classList.toggle('active', s === sec);
   });
@@ -59,6 +59,7 @@ function showSection(sec) {
   if (sec === 'trip') loadTrip('pending');
   if (sec === 'shifts') initShifts();
   if (sec === 'reports') initAdminReports();
+  if (sec === 'sales') initAdminSales();
   if (sec === 'settings') loadSettings();
 }
 
@@ -1666,6 +1667,108 @@ function exportReportCSV() {
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   a.download = `日報_${document.getElementById('rep-adm-year').value}_${document.getElementById('rep-adm-month').value}.csv`;
+  a.click();
+}
+
+// ── 営業報告（管理者） ──
+let allAdminSales = [];
+
+async function initAdminSales() {
+  const ysel = document.getElementById('sale-adm-year');
+  if (!ysel.options.length) {
+    const now = new Date();
+    for (let y = now.getFullYear(); y >= now.getFullYear() - 2; y--) {
+      const o = document.createElement('option');
+      o.value = y; o.textContent = y + '年';
+      if (y === now.getFullYear()) o.selected = true;
+      ysel.appendChild(o);
+    }
+    const msel = document.getElementById('sale-adm-month');
+    for (let m = 1; m <= 12; m++) {
+      const o = document.createElement('option');
+      o.value = m; o.textContent = m + '月';
+      if (m === now.getMonth() + 1) o.selected = true;
+      msel.appendChild(o);
+    }
+  }
+  await loadDeptOptions('sale-adm-dept', true);
+  await loadSaleEmpOptions();
+  loadAdminSales();
+}
+
+async function loadSaleEmpOptions() {
+  try {
+    const res = await api('/api/admin/employees');
+    const d = await res.json();
+    const sel = document.getElementById('sale-adm-emp');
+    sel.innerHTML = '<option value="">全員</option>';
+    (d.employees || []).forEach(e => {
+      const o = document.createElement('option');
+      o.value = e.employee_id;
+      o.textContent = `${e.name}（${e.department || '--'}）`;
+      sel.appendChild(o);
+    });
+  } catch(e) {}
+}
+
+async function loadAdminSales() {
+  const year = document.getElementById('sale-adm-year').value;
+  const month = document.getElementById('sale-adm-month').value;
+  const dept = document.getElementById('sale-adm-dept').value;
+  const emp = document.getElementById('sale-adm-emp').value;
+  try {
+    let url = `/api/admin/sales?year=${year}&month=${month}`;
+    if (dept) url += `&department_id=${dept}`;
+    if (emp) url += `&employee_id=${emp}`;
+    const res = await api(url);
+    const d = await res.json();
+    allAdminSales = d.entries || [];
+    renderAdminSales();
+  } catch(e) {}
+}
+
+function renderAdminSales() {
+  const tbody = document.getElementById('sale-adm-body');
+  tbody.innerHTML = '';
+  if (!allAdminSales.length) {
+    tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;color:var(--text-muted);padding:20px">データなし</td></tr>';
+    return;
+  }
+  const statusColor = { '商談中':'#3B82F6','提案済':'#8B5CF6','受注':'#10B981','失注':'#EF4444','保留':'#F59E0B' };
+  allAdminSales.forEach(r => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td style="white-space:nowrap">${r.report_date}</td>
+      <td style="font-weight:600">${r.name}</td>
+      <td style="color:var(--text-muted)">${r.department || '--'}</td>
+      <td style="font-weight:600">${r.client_company}</td>
+      <td style="font-size:0.78rem">${[r.client_dept, r.client_name].filter(Boolean).join(' / ') || '--'}</td>
+      <td style="font-size:0.78rem">${r.purpose || '--'}</td>
+      <td style="font-size:0.78rem;max-width:200px;white-space:pre-wrap;word-break:break-word">${r.content || '--'}</td>
+      <td style="text-align:right">${r.amount != null ? Number(r.amount).toLocaleString() + '円' : '--'}</td>
+      <td><span style="font-size:0.72rem;font-weight:700;padding:2px 8px;border-radius:12px;background:${(statusColor[r.status]||'#94A3B8')}22;color:${statusColor[r.status]||'#94A3B8'}">${r.status||'--'}</span></td>
+      <td style="font-size:0.78rem">${r.next_action || '--'}</td>
+      <td style="white-space:nowrap">${r.next_date || '--'}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+function exportSalesCSV() {
+  if (!allAdminSales.length) { alert('データがありません'); return; }
+  const headers = ['日付','氏名','部署','会社名','担当部署','担当者名','訪問目的','内容','金額','ステータス','次回アクション','次回予定日'];
+  const rows = allAdminSales.map(r => [
+    r.report_date, r.name, r.department || '',
+    r.client_company, r.client_dept || '', r.client_name || '',
+    r.purpose || '', r.content || '',
+    r.amount != null ? r.amount : '',
+    r.status || '', r.next_action || '', r.next_date || '',
+  ]);
+  const csv = [headers, ...rows].map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `営業報告_${document.getElementById('sale-adm-year').value}_${document.getElementById('sale-adm-month').value}.csv`;
   a.click();
 }
 

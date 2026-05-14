@@ -254,6 +254,22 @@ CREATE TABLE IF NOT EXISTS daily_reports (
     other_start  TEXT,
     other_end    TEXT,
     created_at   TEXT DEFAULT (datetime('now','localtime'))
+);
+
+CREATE TABLE IF NOT EXISTS sales_reports (
+    id             INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id        INTEGER NOT NULL REFERENCES users(id),
+    report_date    TEXT NOT NULL,
+    client_company TEXT NOT NULL,
+    client_dept    TEXT,
+    client_name    TEXT,
+    purpose        TEXT,
+    content        TEXT,
+    amount         INTEGER,
+    status         TEXT,
+    next_action    TEXT,
+    next_date      TEXT,
+    created_at     TEXT DEFAULT (datetime('now','localtime'))
 )
 """
 
@@ -278,6 +294,30 @@ def init_db():
             other_start  TEXT,
             other_end    TEXT,
             created_at   TEXT DEFAULT (datetime('now','localtime'))
+        )""")
+        conn.commit()
+    except Exception:
+        try:
+            conn.rollback()
+        except Exception:
+            pass
+
+    # Migration: sales_reports table
+    try:
+        conn.executescript("""CREATE TABLE IF NOT EXISTS sales_reports (
+            id             INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id        INTEGER NOT NULL REFERENCES users(id),
+            report_date    TEXT NOT NULL,
+            client_company TEXT NOT NULL,
+            client_dept    TEXT,
+            client_name    TEXT,
+            purpose        TEXT,
+            content        TEXT,
+            amount         INTEGER,
+            status         TEXT,
+            next_action    TEXT,
+            next_date      TEXT,
+            created_at     TEXT DEFAULT (datetime('now','localtime'))
         )""")
         conn.commit()
     except Exception:

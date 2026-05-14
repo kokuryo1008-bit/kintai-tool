@@ -1330,6 +1330,113 @@ def admin_get_reports(year: int = None, month: int = None, employee_id: str = No
     return {"entries": [dict(r) for r in rows]}
 
 
+# ── 営業報告（従業員） ──────────────────────────────────────────────────────────
+
+class SalesReportReq(BaseModel):
+    report_date: str
+    client_company: str
+    client_dept: Optional[str] = None
+    client_name: Optional[str] = None
+    purpose: Optional[str] = None
+    content: Optional[str] = None
+    amount: Optional[int] = None
+    status: Optional[str] = None
+    next_action: Optional[str] = None
+    next_date: Optional[str] = None
+
+@app.get("/api/sales/mine")
+def get_my_sales(year: int = None, month: int = None, user=Depends(get_current_user)):
+    today = datetime.now(JST).date()
+    y = year or today.year
+    m = month or today.month
+    conn = get_conn()
+    rows = conn.execute(
+        "SELECT id, report_date, client_company, client_dept, client_name, purpose, content, amount, status, next_action, next_date FROM sales_reports WHERE user_id=? AND strftime('%Y-%m', report_date)=? ORDER BY report_date DESC, id DESC",
+        (user["id"], f"{y:04d}-{m:02d}"),
+    ).fetchall()
+    conn.close()
+    return {"reports": [dict(r) for r in rows]}
+
+@app.post("/api/sales")
+def create_sales(req: SalesReportReq, user=Depends(get_current_user)):
+    if not req.client_company.strip():
+        raise HTTPException(status_code=400, detail="会社名を入力してください。")
+    conn = get_conn()
+    conn.execute(
+        "INSERT INTO sales_reports (user_id, report_date, client_company, client_dept, client_name, purpose, content, amount, status, next_action, next_date) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+        (user["id"], req.report_date, req.client_company.strip(), req.client_dept or None,
+         req.client_name or None, req.purpose or None, req.content or None,
+         req.amount, req.status or None, req.next_action or None, req.next_date or None),
+    )
+    conn.commit()
+    conn.close()
+    return {"ok": True}
+
+@app.put("/api/sales/{report_id}")
+def update_sales(report_id: int, req: SalesReportReq, user=Depends(get_current_user)):
+    conn = get_conn()
+    row = conn.execute("SELECT user_id FROM sales_reports WHERE id=?", (report_id,)).fetchone()
+    if not row or row["user_id"] != user["id"]:
+        conn.close()
+        raise HTTPException(status_code=404, detail="記録が見つかりません。")
+    conn.execute(
+        "UPDATE sales_reports SET report_date=?, client_company=?, client_dept=?, client_name=?, purpose=?, content=?, amount=?, status=?, next_action=?, next_date=? WHERE id=?",
+        (req.report_date, req.client_company.strip(), req.client_dept or None,
+         req.client_name or None, req.purpose or None, req.content or None,
+         req.amount, req.status or None, req.next_action or None, req.next_date or None, report_id),
+    )
+    conn.commit()
+    conn.close()
+    return {"ok": True}
+
+@app.delete("/api/sales/{report_id}")
+def delete_sales(report_id: int, user=Depends(get_current_user)):
+    conn = get_conn()
+    row = conn.execute("SELECT user_id FROM sales_reports WHERE id=?", (report_id,)).fetchone()
+    if not row or row["user_id"] != user["id"]:
+        conn.close()
+        raise HTTPException(status_code=404, detail="記録が見つかりません。")
+    conn.execute("DELETE FROM sales_reports WHERE id=?", (report_id,))
+    conn.commit()
+    conn.close()
+    return {"ok": True}
+
+
+# ── 営業報告（管理者） ──────────────────────────────────────────────────────────
+
+@app.get("/api/admin/sales")
+def admin_get_sales(year: int = None, month: int = None, employee_id: str = None, department_id: int = None, status: str = None, user=Depends(get_current_user)):
+    require_admin(user)
+    today = datetime.now(JST).date()
+    y = year or today.year
+    m = month or today.month
+    dept = _dept_id(user) or department_id
+    conn = get_conn()
+    q = """
+        SELECT sr.id, sr.report_date, u.name, u.employee_id, d.name as department,
+               sr.client_company, sr.client_dept, sr.client_name, sr.purpose,
+               sr.content, sr.amount, sr.status, sr.next_action, sr.next_date
+        FROM sales_reports sr
+        JOIN users u ON sr.user_id=u.id
+        LEFT JOIN departments d ON u.department_id=d.id
+        WHERE strftime('%Y-%m', sr.report_date)=?
+    """
+    params = [f"{y:04d}-{m:02d}"]
+    if employee_id:
+        q += " AND u.employee_id=?"
+        params.append(employee_id)
+    if dept:
+        q += " AND u.department_id=?"
+        params.append(dept)
+    if status:
+        q += " AND sr.status=?"
+        params.append(status)
+    q += " ORDER BY sr.report_date DESC, u.employee_id, sr.id DESC"
+    rows = conn.execute(q, params).fetchall()
+    conn.close()
+    return {"reports": [dict(r) for r in rows]}
+
+
 @app.get("/api/health")
 def health():
     return {"status": "ok"}

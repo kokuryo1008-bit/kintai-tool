@@ -268,14 +268,15 @@ async function submitTrip() {
 
 // ── タブ ──
 function showTab(name) {
-  ['history','leave','report'].forEach(t => {
+  ['history','leave','report','sales'].forEach(t => {
     document.getElementById('tab-' + t).classList.toggle('hidden', t !== name);
   });
   document.querySelectorAll('.tab-btn').forEach((btn, i) => {
-    btn.classList.toggle('active', ['history','leave','report'][i] === name);
+    btn.classList.toggle('active', ['history','leave','report','sales'][i] === name);
   });
   if (name === 'leave') loadLeaveInfo();
   if (name === 'report') loadReport();
+  if (name === 'sales') loadSales();
 }
 
 // ── 日報 ──
@@ -465,6 +466,145 @@ async function deleteReportEntry(entryId) {
     const res = await api(`/api/reports/${entryId}`, 'DELETE');
     if (!res.ok) { const d = await res.json(); alert(d.detail || 'エラー'); return; }
     loadReport();
+  } catch(e) { alert('通信エラーが発生しました'); }
+}
+
+// ── 営業報告 ──
+(function initSaleSelects() {
+  const now = new Date();
+  const ysel = document.getElementById('sale-year');
+  for (let y = now.getFullYear(); y >= now.getFullYear() - 2; y--) {
+    const o = document.createElement('option');
+    o.value = y; o.textContent = y + '年';
+    if (y === now.getFullYear()) o.selected = true;
+    ysel.appendChild(o);
+  }
+  const msel = document.getElementById('sale-month');
+  for (let m = 1; m <= 12; m++) {
+    const o = document.createElement('option');
+    o.value = m; o.textContent = m + '月';
+    if (m === now.getMonth() + 1) o.selected = true;
+    msel.appendChild(o);
+  }
+})();
+
+let salesEntries = [];
+
+async function loadSales() {
+  const year = document.getElementById('sale-year').value;
+  const month = document.getElementById('sale-month').value;
+  try {
+    const res = await api(`/api/sales/mine?year=${year}&month=${month}`);
+    const d = await res.json();
+    if (!res.ok) return;
+    salesEntries = d.entries || [];
+    renderSales();
+  } catch(e) {}
+}
+
+function renderSales() {
+  const list = document.getElementById('sales-list');
+  if (!salesEntries.length) {
+    list.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:24px">記録がありません</div>';
+    return;
+  }
+  const statusColor = { '商談中':'#3B82F6','提案済':'#8B5CF6','受注':'#10B981','失注':'#EF4444','保留':'#F59E0B' };
+  list.innerHTML = salesEntries.map(r => `
+    <div style="background:#F8FAFC;border-radius:10px;padding:14px;margin-bottom:10px;border-left:4px solid ${statusColor[r.status]||'#94A3B8'}">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">
+        <div>
+          <span style="font-weight:800;font-size:1rem">${r.client_company}</span>
+          ${r.client_dept ? `<span style="font-size:0.78rem;color:var(--text-muted);margin-left:6px">${r.client_dept}</span>` : ''}
+          ${r.client_name ? `<span style="font-size:0.82rem;margin-left:6px">/ ${r.client_name}</span>` : ''}
+        </div>
+        <span style="font-size:0.75rem;font-weight:700;padding:2px 10px;border-radius:20px;background:${statusColor[r.status]||'#94A3B8'}22;color:${statusColor[r.status]||'#94A3B8'}">${r.status||''}</span>
+      </div>
+      <div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:4px">${r.report_date}${r.purpose ? ' ｜ ' + r.purpose : ''}</div>
+      ${r.content ? `<div style="font-size:0.85rem;margin-bottom:6px;white-space:pre-wrap">${r.content}</div>` : ''}
+      <div style="display:flex;gap:16px;font-size:0.8rem;flex-wrap:wrap">
+        ${r.amount ? `<span>💰 ${Number(r.amount).toLocaleString()}円</span>` : ''}
+        ${r.next_action ? `<span>📌 ${r.next_action}</span>` : ''}
+        ${r.next_date ? `<span>📅 ${r.next_date}</span>` : ''}
+      </div>
+      <div style="margin-top:8px;display:flex;gap:6px">
+        <button class="btn-outline btn-sm" onclick="openSalesModal(${r.id})">編集</button>
+        <button class="btn-outline btn-sm" style="color:var(--danger);border-color:var(--danger)" onclick="deleteSales(${r.id})">削除</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function openSalesModal(entryId = null) {
+  document.getElementById('sales-modal-title').textContent = entryId ? '営業報告 編集' : '営業報告 入力';
+  document.getElementById('sale-entry-id').value = entryId || '';
+  if (entryId) {
+    const r = salesEntries.find(e => e.id === entryId);
+    if (!r) return;
+    document.getElementById('sale-date').value = r.report_date;
+    document.getElementById('sale-company').value = r.client_company || '';
+    document.getElementById('sale-dept').value = r.client_dept || '';
+    document.getElementById('sale-person').value = r.client_name || '';
+    document.getElementById('sale-purpose').value = r.purpose || '';
+    document.getElementById('sale-content').value = r.content || '';
+    document.getElementById('sale-amount').value = r.amount || '';
+    document.getElementById('sale-status').value = r.status || '商談中';
+    document.getElementById('sale-next-action').value = r.next_action || '';
+    document.getElementById('sale-next-date').value = r.next_date || '';
+  } else {
+    const today = new Date().toISOString().slice(0, 10);
+    document.getElementById('sale-date').value = today;
+    document.getElementById('sale-company').value = '';
+    document.getElementById('sale-dept').value = '';
+    document.getElementById('sale-person').value = '';
+    document.getElementById('sale-purpose').value = '';
+    document.getElementById('sale-content').value = '';
+    document.getElementById('sale-amount').value = '';
+    document.getElementById('sale-status').value = '商談中';
+    document.getElementById('sale-next-action').value = '';
+    document.getElementById('sale-next-date').value = '';
+  }
+  document.getElementById('sales-modal').classList.remove('hidden');
+}
+
+function closeSalesModal() {
+  document.getElementById('sales-modal').classList.add('hidden');
+}
+
+async function saveSales() {
+  const entryId = document.getElementById('sale-entry-id').value;
+  const date = document.getElementById('sale-date').value;
+  const company = document.getElementById('sale-company').value.trim();
+  if (!date) { alert('日付を入力してください'); return; }
+  if (!company) { alert('会社名を入力してください'); return; }
+  const body = {
+    report_date: date,
+    client_company: company,
+    client_dept: document.getElementById('sale-dept').value.trim() || null,
+    client_name: document.getElementById('sale-person').value.trim() || null,
+    purpose: document.getElementById('sale-purpose').value.trim() || null,
+    content: document.getElementById('sale-content').value.trim() || null,
+    amount: document.getElementById('sale-amount').value ? parseInt(document.getElementById('sale-amount').value) : null,
+    status: document.getElementById('sale-status').value || null,
+    next_action: document.getElementById('sale-next-action').value.trim() || null,
+    next_date: document.getElementById('sale-next-date').value || null,
+  };
+  try {
+    const method = entryId ? 'PUT' : 'POST';
+    const path = entryId ? `/api/sales/${entryId}` : '/api/sales';
+    const res = await api(path, method, body);
+    const d = await res.json();
+    if (!res.ok) { alert(d.detail || 'エラーが発生しました'); return; }
+    closeSalesModal();
+    loadSales();
+  } catch(e) { alert('通信エラーが発生しました'); }
+}
+
+async function deleteSales(entryId) {
+  if (!confirm('この営業報告を削除しますか？')) return;
+  try {
+    const res = await api(`/api/sales/${entryId}`, 'DELETE');
+    if (!res.ok) { const d = await res.json(); alert(d.detail || 'エラー'); return; }
+    loadSales();
   } catch(e) { alert('通信エラーが発生しました'); }
 }
 

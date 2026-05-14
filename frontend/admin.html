@@ -25,6 +25,7 @@
       <div class="sidebar-item" onclick="showSection('trip')" id="nav-trip">✈️ 出張申請</div>
       <div class="sidebar-item" onclick="showSection('shifts')" id="nav-shifts">📅 シフト管理</div>
       <div class="sidebar-item" onclick="showSection('reports')" id="nav-reports">📝 日報閲覧</div>
+      <div class="sidebar-item" onclick="showSection('sales')" id="nav-sales">💼 営業報告</div>
       <div class="sidebar-item" onclick="showSection('settings')" id="nav-settings">⚙️ 設定</div>
     </div>
 
@@ -282,6 +283,51 @@
               </thead>
               <tbody id="rep-adm-body"></tbody>
               <tfoot id="rep-adm-foot"></tfoot>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- 営業報告 -->
+      <div id="section-sales" class="hidden">
+        <h2 style="font-size:1.2rem;font-weight:800;color:var(--primary);margin-bottom:20px">営業報告</h2>
+        <div class="card" style="margin-bottom:16px">
+          <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end">
+            <div class="form-group" style="margin:0;flex:1;min-width:100px">
+              <label>年</label><select id="sale-adm-year"></select>
+            </div>
+            <div class="form-group" style="margin:0;flex:1;min-width:80px">
+              <label>月</label><select id="sale-adm-month"></select>
+            </div>
+            <div class="form-group" style="margin:0;flex:2;min-width:150px">
+              <label>部署</label><select id="sale-adm-dept"><option value="">全部署</option></select>
+            </div>
+            <div class="form-group" style="margin:0;flex:2;min-width:150px">
+              <label>従業員</label><select id="sale-adm-emp"><option value="">全員</option></select>
+            </div>
+            <button class="btn-outline" onclick="loadAdminSales()">表示</button>
+            <button class="btn-outline btn-sm" onclick="exportSalesCSV()" style="margin-left:auto">CSV出力</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="table-wrap">
+            <table id="sale-adm-table" style="min-width:800px;font-size:0.82rem">
+              <thead>
+                <tr>
+                  <th style="min-width:80px">日付</th>
+                  <th style="min-width:70px">氏名</th>
+                  <th style="min-width:70px">部署</th>
+                  <th style="min-width:130px">会社名</th>
+                  <th style="min-width:80px">部署/担当</th>
+                  <th style="min-width:80px">目的</th>
+                  <th style="min-width:160px">内容</th>
+                  <th style="min-width:80px">金額</th>
+                  <th style="min-width:70px">状況</th>
+                  <th style="min-width:120px">次回アクション</th>
+                  <th style="min-width:80px">次回日</th>
+                </tr>
+              </thead>
+              <tbody id="sale-adm-body"></tbody>
             </table>
           </div>
         </div>
