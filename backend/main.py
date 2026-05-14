@@ -449,9 +449,9 @@ def admin_stats(user=Depends(get_current_user)):
     conn = get_conn()
     dept_cond = "AND u.department_id=?" if dept else ""
     dept_p = (dept,) if dept else ()
-    total = conn.execute(f"SELECT COUNT(*) FROM users u WHERE u.is_active=1 AND u.role='employee' {dept_cond}", dept_p).fetchone()[0]
+    total = conn.execute(f"SELECT COUNT(*) FROM users u WHERE u.is_active=1 AND u.role NOT IN ('admin') {dept_cond}", dept_p).fetchone()[0]
     present = conn.execute(
-        f"SELECT COUNT(*) FROM attendance a JOIN users u ON a.user_id=u.id WHERE a.work_date=? AND a.clock_in IS NOT NULL AND u.is_active=1 {dept_cond}",
+        f"SELECT COUNT(*) FROM attendance a JOIN users u ON a.user_id=u.id WHERE a.work_date=? AND a.clock_in IS NOT NULL AND u.is_active=1 AND u.role NOT IN ('admin') {dept_cond}",
         (today,) + dept_p,
     ).fetchone()[0]
     p_leave = conn.execute(
@@ -474,7 +474,7 @@ def admin_today(user=Depends(get_current_user)):
         FROM users u
         LEFT JOIN departments d ON u.department_id=d.id
         LEFT JOIN attendance a ON a.user_id=u.id AND a.work_date=?
-        WHERE u.is_active=1 AND u.role='employee'
+        WHERE u.is_active=1 AND u.role NOT IN ('admin')
     """
     params = [today]
     if dept:

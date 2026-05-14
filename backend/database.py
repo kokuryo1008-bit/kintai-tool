@@ -263,6 +263,29 @@ def init_db():
     conn.executescript(_SCHEMA)
     conn.commit()
 
+    # Migration: daily_reports table
+    try:
+        conn.executescript("""CREATE TABLE IF NOT EXISTS daily_reports (
+            id           INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id      INTEGER NOT NULL REFERENCES users(id),
+            report_date  TEXT NOT NULL,
+            part_number  TEXT,
+            estimate_no  TEXT,
+            work_code    TEXT,
+            board_start  TEXT,
+            board_end    TEXT,
+            other_code   TEXT,
+            other_start  TEXT,
+            other_end    TEXT,
+            created_at   TEXT DEFAULT (datetime('now','localtime'))
+        )""")
+        conn.commit()
+    except Exception:
+        try:
+            conn.rollback()
+        except Exception:
+            pass
+
     # Migration: weekly_off_days column (column already exists → rollback to clear aborted tx)
     try:
         conn.execute("ALTER TABLE departments ADD COLUMN weekly_off_days TEXT DEFAULT ''")
