@@ -48,7 +48,7 @@ function resetPin() {
 
 // ── セクション切り替え ──
 function showSection(sec) {
-  ['dashboard','employees','attendance','leave','trip','shifts','reports','sales','settings'].forEach(s => {
+  ['dashboard','employees','attendance','leave','trip','shifts','reports','sales','overtime','settings'].forEach(s => {
     document.getElementById('section-' + s).classList.toggle('hidden', s !== sec);
     document.getElementById('nav-' + s).classList.toggle('active', s === sec);
   });
@@ -60,6 +60,7 @@ function showSection(sec) {
   if (sec === 'shifts') initShifts();
   if (sec === 'reports') initAdminReports();
   if (sec === 'sales') initAdminSales();
+  if (sec === 'overtime') initAdminOvertime();
   if (sec === 'settings') loadSettings();
 }
 
@@ -503,14 +504,40 @@ function renderDeptList(depts) {
   el.innerHTML = '';
   depts.forEach(d => {
     const div = document.createElement('div');
-    div.style.cssText = 'display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:#F8FAFC;border-radius:8px;margin-bottom:6px';
+    div.style.cssText = 'padding:10px 14px;background:#F8FAFC;border-radius:8px;margin-bottom:8px';
     div.innerHTML = `
-      <span>${d.name}</span>
-      <button class="btn-outline btn-sm" style="color:var(--danger);border-color:var(--danger)" onclick="deleteDept(${d.id},'${d.name}')">削除</button>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <span style="font-weight:600">${d.name}</span>
+        <button class="btn-outline btn-sm" style="color:var(--danger);border-color:var(--danger)" onclick="deleteDept(${d.id},'${d.name}')">削除</button>
+      </div>
+      <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap">
+        <div class="form-group" style="margin:0;min-width:100px">
+          <label style="font-size:0.75rem">始業時刻</label>
+          <input type="time" id="dws-${d.id}" value="${d.dept_work_start||''}" style="width:110px;padding:6px 8px;font-size:0.85rem">
+        </div>
+        <div class="form-group" style="margin:0;min-width:100px">
+          <label style="font-size:0.75rem">定時終了</label>
+          <input type="time" id="dwe-${d.id}" value="${d.dept_work_end||''}" style="width:110px;padding:6px 8px;font-size:0.85rem">
+        </div>
+        <button class="btn-outline btn-sm" onclick="saveDeptWorkTime(${d.id})" style="margin-bottom:2px">保存</button>
+        <span id="dwt-msg-${d.id}" style="font-size:0.78rem;color:var(--accent)"></span>
+      </div>
     `;
     el.appendChild(div);
   });
   if (!depts.length) el.innerHTML = '<div style="color:var(--text-muted);font-size:0.85rem">部署が登録されていません</div>';
+}
+
+async function saveDeptWorkTime(deptId) {
+  const ws = document.getElementById(`dws-${deptId}`).value;
+  const we = document.getElementById(`dwe-${deptId}`).value;
+  try {
+    const res = await api(`/api/departments/${deptId}/work-time`, 'PUT', { work_start: ws || null, work_end: we || null });
+    if (!res.ok) { const d = await res.json(); alert(d.detail || 'エラー'); return; }
+    const msg = document.getElementById(`dwt-msg-${deptId}`);
+    msg.textContent = '保存しました';
+    setTimeout(() => { msg.textContent = ''; }, 2000);
+  } catch(e) { alert('通信エラー'); }
 }
 
 async function saveCompanySettings() {
@@ -1810,6 +1837,105 @@ function exportSalesCSV() {
   a.href = URL.createObjectURL(blob);
   a.download = `営業報告_${document.getElementById('sale-adm-year').value}_${document.getElementById('sale-adm-month').value}.csv`;
   a.click();
+}
+
+// ── 残業申請管理（管理者） ──
+let allAdminOvertime = [];
+let overtimeFilter = 'pending';
+
+async function initAdminOvertime() {
+  const ysel = document.getElementById('ot-adm-year');
+  if (!ysel.options.length) {
+    const now = new Date();
+    for (let y = now.getFullYear(); y >= now.getFullYear() - 2; y--) {
+      const o = document.createElement('option');
+      o.value = y; o.textContent = y + '年';
+      if (y === now.getFullYear()) o.selected = true;
+      ysel.appendChild(o);
+    }
+    const msel = document.getElementById('ot-adm-month');
+    for (let m = 1; m <= 12; m++) {
+      const o = document.createElement('option');
+      o.value = m; o.textContent = m + '月';
+      if (m === now.getMonth() + 1) o.selected = true;
+      msel.appendChild(o);
+    }
+  }
+  await loadDeptOptions('ot-adm-dept', true);
+  loadAdminOvertime();
+}
+
+function filterAdminOvertime(f) {
+  overtimeFilter = f;
+  document.getElementById('otf-pending').style.fontWeight = f === 'pending' ? '800' : '';
+  document.getElementById('otf-all').style.fontWeight = f === 'all' ? '800' : '';
+  loadAdminOvertime();
+}
+
+async function loadAdminOvertime() {
+  const year = document.getElementById('ot-adm-year').value;
+  const month = document.getElementById('ot-adm-month').value;
+  const dept = document.getElementById('ot-adm-dept').value;
+  try {
+    let url = `/api/admin/overtime?year=${year}&month=${month}`;
+    if (overtimeFilter !== 'all') url += `&status=${overtimeFilter}`;
+    if (dept) url += `&department_id=${dept}`;
+    const res = await api(url);
+    const d = await res.json();
+    allAdminOvertime = d.entries || [];
+    renderAdminOvertime();
+  } catch(e) {}
+}
+
+function renderAdminOvertime() {
+  const tbody = document.getElementById('ot-adm-body');
+  if (!allAdminOvertime.length) {
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:20px">データなし</td></tr>';
+    return;
+  }
+  const sc = { pending:'#F59E0B', approved:'#10B981', rejected:'#EF4444' };
+  const sl = { pending:'申請中', approved:'承認済', rejected:'却下' };
+  tbody.innerHTML = '';
+  allAdminOvertime.forEach(r => {
+    const otMin = r.overtime_minutes || 0;
+    const otStr = otMin ? `${Math.floor(otMin/60)}h${otMin%60?otMin%60+'m':''}` : '--';
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td style="white-space:nowrap">${r.work_date}</td>
+      <td style="font-weight:600">${r.name}</td>
+      <td style="color:var(--text-muted)">${r.department||'--'}</td>
+      <td style="text-align:center">${r.planned_end ? r.planned_end.slice(0,5) : '--'}</td>
+      <td style="text-align:center">${r.clock_out ? r.clock_out.slice(0,5) : '--'}</td>
+      <td style="text-align:center;color:var(--warning);font-weight:700">${otStr}</td>
+      <td style="font-size:0.78rem;max-width:160px">${r.reason||'--'}</td>
+      <td><span style="font-size:0.72rem;font-weight:700;padding:2px 8px;border-radius:12px;background:${sc[r.status]||'#94A3B8'}22;color:${sc[r.status]||'#94A3B8'}">${sl[r.status]||r.status}</span></td>
+      <td style="white-space:nowrap">
+        ${r.status === 'pending' ? `
+          <button class="btn-outline btn-sm" style="color:var(--accent);border-color:var(--accent)" onclick="approveOvertime(${r.id})">承認</button>
+          <button class="btn-outline btn-sm" style="color:var(--danger);border-color:var(--danger);margin-left:4px" onclick="rejectOvertime(${r.id})">却下</button>
+        ` : ''}
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+async function approveOvertime(id) {
+  if (!confirm('この残業申請を承認しますか？')) return;
+  try {
+    const res = await api(`/api/admin/overtime/${id}/approve`, 'POST');
+    if (!res.ok) { const d = await res.json(); alert(d.detail||'エラー'); return; }
+    loadAdminOvertime();
+  } catch(e) { alert('通信エラー'); }
+}
+
+async function rejectOvertime(id) {
+  if (!confirm('この残業申請を却下しますか？')) return;
+  try {
+    const res = await api(`/api/admin/overtime/${id}/reject`, 'POST');
+    if (!res.ok) { const d = await res.json(); alert(d.detail||'エラー'); return; }
+    loadAdminOvertime();
+  } catch(e) { alert('通信エラー'); }
 }
 
 // 初期ロード

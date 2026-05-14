@@ -268,15 +268,16 @@ async function submitTrip() {
 
 // ── タブ ──
 function showTab(name) {
-  ['history','leave','report','sales'].forEach(t => {
+  ['history','leave','report','sales','overtime'].forEach(t => {
     document.getElementById('tab-' + t).classList.toggle('hidden', t !== name);
   });
   document.querySelectorAll('.tab-btn').forEach((btn, i) => {
-    btn.classList.toggle('active', ['history','leave','report','sales'][i] === name);
+    btn.classList.toggle('active', ['history','leave','report','sales','overtime'][i] === name);
   });
   if (name === 'leave') loadLeaveInfo();
   if (name === 'report') loadReport();
   if (name === 'sales') loadSales();
+  if (name === 'overtime') loadOvertime();
 }
 
 // ── 日報 ──
@@ -605,6 +606,102 @@ async function deleteSales(entryId) {
     const res = await api(`/api/sales/${entryId}`, 'DELETE');
     if (!res.ok) { const d = await res.json(); alert(d.detail || 'エラー'); return; }
     loadSales();
+  } catch(e) { alert('通信エラーが発生しました'); }
+}
+
+// ── 残業申請 ──
+(function initOtSelects() {
+  const now = new Date();
+  const ysel = document.getElementById('ot-year');
+  for (let y = now.getFullYear(); y >= now.getFullYear() - 2; y--) {
+    const o = document.createElement('option');
+    o.value = y; o.textContent = y + '年';
+    if (y === now.getFullYear()) o.selected = true;
+    ysel.appendChild(o);
+  }
+  const msel = document.getElementById('ot-month');
+  for (let m = 1; m <= 12; m++) {
+    const o = document.createElement('option');
+    o.value = m; o.textContent = m + '月';
+    if (m === now.getMonth() + 1) o.selected = true;
+    msel.appendChild(o);
+  }
+})();
+
+let overtimeEntries = [];
+
+async function loadOvertime() {
+  const year = document.getElementById('ot-year').value;
+  const month = document.getElementById('ot-month').value;
+  try {
+    const res = await api(`/api/overtime/mine?year=${year}&month=${month}`);
+    const d = await res.json();
+    if (!res.ok) return;
+    overtimeEntries = d.entries || [];
+    renderOvertime();
+  } catch(e) {}
+}
+
+function renderOvertime() {
+  const list = document.getElementById('overtime-list');
+  if (!overtimeEntries.length) {
+    list.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:24px">申請がありません</div>';
+    return;
+  }
+  const statusColor = { pending:'#F59E0B', approved:'#10B981', rejected:'#EF4444' };
+  const statusLabel = { pending:'申請中', approved:'承認済', rejected:'却下' };
+  list.innerHTML = overtimeEntries.map(r => `
+    <div style="background:#F8FAFC;border-radius:10px;padding:14px;margin-bottom:10px;border-left:4px solid ${statusColor[r.status]||'#94A3B8'}">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <span style="font-weight:800">${r.work_date}</span>
+        <span style="font-size:0.75rem;font-weight:700;padding:2px 10px;border-radius:20px;background:${statusColor[r.status]||'#94A3B8'}22;color:${statusColor[r.status]||'#94A3B8'}">${statusLabel[r.status]||r.status}</span>
+      </div>
+      <div style="font-size:0.83rem;display:flex;gap:16px;flex-wrap:wrap;margin-bottom:4px">
+        ${r.planned_end ? `<span>予定終了: <strong>${r.planned_end.slice(0,5)}</strong></span>` : ''}
+        ${r.clock_out ? `<span>実際退勤: <strong>${r.clock_out.slice(0,5)}</strong></span>` : ''}
+        ${r.overtime_minutes != null ? `<span>残業: <strong>${Math.floor(r.overtime_minutes/60)}h${r.overtime_minutes%60?r.overtime_minutes%60+'m':''}</strong></span>` : ''}
+      </div>
+      ${r.reason ? `<div style="font-size:0.83rem;color:var(--text-muted)">${r.reason}</div>` : ''}
+      ${r.status === 'pending' ? `<div style="margin-top:8px"><button class="btn-outline btn-sm" style="color:var(--danger);border-color:var(--danger)" onclick="deleteOvertime(${r.id})">取り消し</button></div>` : ''}
+    </div>
+  `).join('');
+}
+
+function openOvertimeModal() {
+  const today = new Date().toISOString().slice(0, 10);
+  document.getElementById('ot-date').value = today;
+  document.getElementById('ot-planned-end').value = '';
+  document.getElementById('ot-reason').value = '';
+  document.getElementById('overtime-modal').classList.remove('hidden');
+}
+
+function closeOvertimeModal() {
+  document.getElementById('overtime-modal').classList.add('hidden');
+}
+
+async function saveOvertime() {
+  const date = document.getElementById('ot-date').value;
+  if (!date) { alert('日付を入力してください'); return; }
+  const body = {
+    work_date: date,
+    planned_end: document.getElementById('ot-planned-end').value || null,
+    reason: document.getElementById('ot-reason').value.trim() || null,
+  };
+  try {
+    const res = await api('/api/overtime', 'POST', body);
+    const d = await res.json();
+    if (!res.ok) { alert(d.detail || 'エラーが発生しました'); return; }
+    closeOvertimeModal();
+    loadOvertime();
+  } catch(e) { alert('通信エラーが発生しました'); }
+}
+
+async function deleteOvertime(id) {
+  if (!confirm('この申請を取り消しますか？')) return;
+  try {
+    const res = await api(`/api/overtime/${id}`, 'DELETE');
+    if (!res.ok) { const d = await res.json(); alert(d.detail || 'エラー'); return; }
+    loadOvertime();
   } catch(e) { alert('通信エラーが発生しました'); }
 }
 

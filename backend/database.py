@@ -146,6 +146,8 @@ CREATE TABLE IF NOT EXISTS departments (
     id              INTEGER PRIMARY KEY AUTOINCREMENT,
     name            TEXT NOT NULL,
     weekly_off_days TEXT DEFAULT '',
+    dept_work_start TEXT DEFAULT NULL,
+    dept_work_end   TEXT DEFAULT NULL,
     created_at      TEXT DEFAULT (datetime('now','localtime'))
 );
 
@@ -270,6 +272,19 @@ CREATE TABLE IF NOT EXISTS sales_reports (
     next_action    TEXT,
     next_date      TEXT,
     created_at     TEXT DEFAULT (datetime('now','localtime'))
+);
+
+CREATE TABLE IF NOT EXISTS overtime_requests (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id     INTEGER NOT NULL REFERENCES users(id),
+    work_date   TEXT NOT NULL,
+    planned_end TEXT,
+    reason      TEXT,
+    status      TEXT DEFAULT 'pending',
+    approved_by INTEGER REFERENCES users(id),
+    approved_at TEXT,
+    created_at  TEXT DEFAULT (datetime('now','localtime')),
+    UNIQUE(user_id, work_date)
 )
 """
 
@@ -326,9 +341,52 @@ def init_db():
         except Exception:
             pass
 
-    # Migration: weekly_off_days column (column already exists → rollback to clear aborted tx)
+    # Migration: weekly_off_days column
     try:
         conn.execute("ALTER TABLE departments ADD COLUMN weekly_off_days TEXT DEFAULT ''")
+        conn.commit()
+    except Exception:
+        try:
+            conn.rollback()
+        except Exception:
+            pass
+
+    # Migration: dept_work_start / dept_work_end columns
+    for col in ("dept_work_start TEXT DEFAULT NULL", "dept_work_end TEXT DEFAULT NULL"):
+        try:
+            conn.execute(f"ALTER TABLE departments ADD COLUMN {col}")
+            conn.commit()
+        except Exception:
+            try:
+                conn.rollback()
+            except Exception:
+                pass
+
+    # Migration: overtime_requests table
+    try:
+        conn.executescript("""CREATE TABLE IF NOT EXISTS overtime_requests (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id     INTEGER NOT NULL REFERENCES users(id),
+            work_date   TEXT NOT NULL,
+            planned_end TEXT,
+            reason      TEXT,
+            status      TEXT DEFAULT 'pending',
+            approved_by INTEGER REFERENCES users(id),
+            approved_at TEXT,
+            created_by  INTEGER REFERENCES users(id),
+            created_at  TEXT DEFAULT (datetime('now','localtime')),
+            UNIQUE(user_id, work_date)
+        )""")
+        conn.commit()
+    except Exception:
+        try:
+            conn.rollback()
+        except Exception:
+            pass
+
+    # Migration: overtime_requests.created_by column
+    try:
+        conn.execute("ALTER TABLE overtime_requests ADD COLUMN created_by INTEGER REFERENCES users(id)")
         conn.commit()
     except Exception:
         try:

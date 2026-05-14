@@ -26,6 +26,7 @@
       <div class="sidebar-item" onclick="showSection('shifts')" id="nav-shifts">📅 シフト管理</div>
       <div class="sidebar-item" onclick="showSection('reports')" id="nav-reports">📝 日報閲覧</div>
       <div class="sidebar-item" onclick="showSection('sales')" id="nav-sales">💼 営業報告</div>
+      <div class="sidebar-item" onclick="showSection('overtime')" id="nav-overtime">⏰ 残業申請</div>
       <div class="sidebar-item" onclick="showSection('settings')" id="nav-settings">⚙️ 設定</div>
     </div>
 
@@ -286,6 +287,37 @@
               </thead>
               <tbody id="rep-adm-body"></tbody>
               <tfoot id="rep-adm-foot"></tfoot>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- 残業申請 -->
+      <div id="section-overtime" class="hidden">
+        <h2 style="font-size:1.2rem;font-weight:800;color:var(--primary);margin-bottom:20px">残業申請管理</h2>
+        <div class="card" style="margin-bottom:16px">
+          <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end">
+            <div class="form-group" style="margin:0;flex:1;min-width:100px"><label>年</label><select id="ot-adm-year"></select></div>
+            <div class="form-group" style="margin:0;flex:1;min-width:80px"><label>月</label><select id="ot-adm-month"></select></div>
+            <div class="form-group" style="margin:0;flex:2;min-width:150px"><label>部署</label><select id="ot-adm-dept"><option value="">全部署</option></select></div>
+            <div style="display:flex;gap:6px;align-items:flex-end">
+              <button class="btn-outline btn-sm" onclick="filterAdminOvertime('pending')" id="otf-pending" style="border-color:var(--warning);color:var(--warning)">申請中</button>
+              <button class="btn-outline btn-sm" onclick="filterAdminOvertime('all')" id="otf-all">全て</button>
+              <button class="btn-outline" onclick="loadAdminOvertime()">表示</button>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="table-wrap">
+            <table style="min-width:800px;font-size:0.82rem">
+              <thead>
+                <tr>
+                  <th>日付</th><th>氏名</th><th>部署</th>
+                  <th>予定終了</th><th>実際退勤</th><th>残業時間</th>
+                  <th>理由</th><th>状態</th><th>操作</th>
+                </tr>
+              </thead>
+              <tbody id="ot-adm-body"></tbody>
             </table>
           </div>
         </div>

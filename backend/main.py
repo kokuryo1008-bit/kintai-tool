@@ -83,14 +83,27 @@ def _calc_hours(conn, user_id: int, work_date: str):
     ).fetchone()
     if not row or not row["clock_in"] or not row["clock_out"]:
         return
-    company = conn.execute("SELECT work_hours FROM company WHERE id=1").fetchone()
-    std_min = int((company["work_hours"] if company else 8.0) * 60)
     ci = datetime.strptime(f"{work_date} {row['clock_in']}", "%Y-%m-%d %H:%M:%S")
     co = datetime.strptime(f"{work_date} {row['clock_out']}", "%Y-%m-%d %H:%M:%S")
     if co < ci:
         co += timedelta(days=1)
     total = int((co - ci).total_seconds() / 60)
-    overtime = max(0, total - std_min)
+
+    # 部署の定時終了時刻を優先、なければ会社の所定労働時間で計算
+    dept_row = conn.execute(
+        "SELECT d.dept_work_end FROM users u LEFT JOIN departments d ON u.department_id=d.id WHERE u.id=?",
+        (user_id,),
+    ).fetchone()
+    if dept_row and dept_row["dept_work_end"]:
+        work_end = datetime.strptime(f"{work_date} {dept_row['dept_work_end']}", "%Y-%m-%d %H:%M")
+        overtime_raw = max(0, int((co - work_end).total_seconds() / 60))
+    else:
+        company = conn.execute("SELECT work_hours FROM company WHERE id=1").fetchone()
+        std_min = int((company["work_hours"] if company else 8.0) * 60)
+        overtime_raw = max(0, total - std_min)
+
+    # 15分刻みで切り捨て
+    overtime = (overtime_raw // 15) * 15
     conn.execute(
         "UPDATE attendance SET work_minutes=?, overtime_minutes=? WHERE user_id=? AND work_date=?",
         (total, overtime, user_id, work_date),
@@ -212,9 +225,25 @@ class DeptReq(BaseModel):
 @app.get("/api/departments")
 def get_departments(user=Depends(get_current_user)):
     conn = get_conn()
-    rows = conn.execute("SELECT id, name, weekly_off_days FROM departments ORDER BY id").fetchall()
+    rows = conn.execute("SELECT id, name, weekly_off_days, dept_work_start, dept_work_end FROM departments ORDER BY id").fetchall()
     conn.close()
     return {"departments": [dict(r) for r in rows]}
+
+class DeptWorkTimeReq(BaseModel):
+    work_start: Optional[str] = None
+    work_end: Optional[str] = None
+
+@app.put("/api/departments/{dept_id}/work-time")
+def update_dept_work_time(dept_id: int, req: DeptWorkTimeReq, user=Depends(get_current_user)):
+    require_super_admin(user)
+    conn = get_conn()
+    conn.execute(
+        "UPDATE departments SET dept_work_start=?, dept_work_end=? WHERE id=?",
+        (req.work_start or None, req.work_end or None, dept_id),
+    )
+    conn.commit()
+    conn.close()
+    return {"ok": True}
 
 @app.post("/api/departments")
 def create_department(req: DeptReq, user=Depends(get_current_user)):
@@ -1355,7 +1384,7 @@ def get_my_sales(year: int = None, month: int = None, user=Depends(get_current_u
         (user["id"], f"{y:04d}-{m:02d}"),
     ).fetchall()
     conn.close()
-    return {"reports": [dict(r) for r in rows]}
+    return {"entries": [dict(r) for r in rows]}
 
 @app.post("/api/sales")
 def create_sales(req: SalesReportReq, user=Depends(get_current_user)):
@@ -1434,7 +1463,131 @@ def admin_get_sales(year: int = None, month: int = None, employee_id: str = None
     q += " ORDER BY sr.report_date DESC, u.employee_id, sr.id DESC"
     rows = conn.execute(q, params).fetchall()
     conn.close()
-    return {"reports": [dict(r) for r in rows]}
+    return {"entries": [dict(r) for r in rows]}
+
+
+# ── 残業申請（従業員） ────────────────────────────────────────────────────────
+
+class OvertimeReq(BaseModel):
+    work_date: str
+    planned_end: Optional[str] = None
+    reason: Optional[str] = None
+
+@app.get("/api/overtime/mine")
+def get_my_overtime(year: int = None, month: int = None, user=Depends(get_current_user)):
+    today = datetime.now(JST).date()
+    y = year or today.year
+    m = month or today.month
+    conn = get_conn()
+    rows = conn.execute(
+        """SELECT o.id, o.work_date, o.planned_end, o.reason, o.status, o.created_at,
+                  a.clock_in, a.clock_out, a.overtime_minutes
+           FROM overtime_requests o
+           LEFT JOIN attendance a ON a.user_id=o.user_id AND a.work_date=o.work_date
+           WHERE o.user_id=? AND strftime('%Y-%m', o.work_date)=?
+           ORDER BY o.work_date DESC""",
+        (user["id"], f"{y:04d}-{m:02d}"),
+    ).fetchall()
+    conn.close()
+    return {"entries": [dict(r) for r in rows]}
+
+@app.post("/api/overtime")
+def create_overtime(req: OvertimeReq, user=Depends(get_current_user)):
+    conn = get_conn()
+    try:
+        conn.execute(
+            "INSERT INTO overtime_requests (user_id, work_date, planned_end, reason) VALUES (?,?,?,?)",
+            (user["id"], req.work_date, req.planned_end or None, req.reason or None),
+        )
+        conn.commit()
+    except Exception:
+        try: conn.rollback()
+        except Exception: pass
+        raise HTTPException(400, "同じ日付の申請が既にあります。")
+    conn.close()
+    return {"ok": True}
+
+@app.delete("/api/overtime/{req_id}")
+def delete_overtime(req_id: int, user=Depends(get_current_user)):
+    conn = get_conn()
+    row = conn.execute("SELECT user_id, status FROM overtime_requests WHERE id=?", (req_id,)).fetchone()
+    if not row or row["user_id"] != user["id"]:
+        conn.close()
+        raise HTTPException(404, "申請が見つかりません。")
+    if row["status"] != "pending":
+        conn.close()
+        raise HTTPException(400, "承認済み・却下済みの申請は取り消せません。")
+    conn.execute("DELETE FROM overtime_requests WHERE id=?", (req_id,))
+    conn.commit()
+    conn.close()
+    return {"ok": True}
+
+
+# ── 残業申請（管理者） ────────────────────────────────────────────────────────
+
+@app.get("/api/admin/overtime")
+def admin_overtime_list(year: int = None, month: int = None, status: str = "", department_id: int = None, user=Depends(get_current_user)):
+    require_admin(user)
+    today = datetime.now(JST).date()
+    y = year or today.year
+    m = month or today.month
+    dept = _dept_id(user) or department_id
+    conn = get_conn()
+    conditions = ["strftime('%Y-%m', o.work_date)=?"]
+    params: list = [f"{y:04d}-{m:02d}"]
+    if status:
+        conditions.append("o.status=?")
+        params.append(status)
+    if dept:
+        conditions.append("u.department_id=?")
+        params.append(dept)
+    where = "WHERE " + " AND ".join(conditions)
+    q = f"""
+        SELECT o.id, o.work_date, o.planned_end, o.reason, o.status, o.created_at,
+               u.name, u.employee_id, d.name as department,
+               a.clock_in, a.clock_out, a.overtime_minutes
+        FROM overtime_requests o
+        JOIN users u ON o.user_id=u.id
+        LEFT JOIN departments d ON u.department_id=d.id
+        LEFT JOIN attendance a ON a.user_id=o.user_id AND a.work_date=o.work_date
+        {where}
+        ORDER BY o.work_date DESC, d.name, u.employee_id
+    """
+    rows = conn.execute(q, params).fetchall()
+    conn.close()
+    return {"entries": [dict(r) for r in rows]}
+
+@app.post("/api/admin/overtime/{req_id}/approve")
+def admin_approve_overtime(req_id: int, user=Depends(get_current_user)):
+    require_admin(user)
+    conn = get_conn()
+    row = conn.execute("SELECT id FROM overtime_requests WHERE id=? AND status='pending'", (req_id,)).fetchone()
+    if not row:
+        conn.close()
+        raise HTTPException(404, "申請が見つかりません。")
+    conn.execute(
+        "UPDATE overtime_requests SET status='approved', approved_by=?, approved_at=datetime('now','localtime') WHERE id=?",
+        (user["id"], req_id),
+    )
+    conn.commit()
+    conn.close()
+    return {"ok": True}
+
+@app.post("/api/admin/overtime/{req_id}/reject")
+def admin_reject_overtime(req_id: int, user=Depends(get_current_user)):
+    require_admin(user)
+    conn = get_conn()
+    row = conn.execute("SELECT id FROM overtime_requests WHERE id=? AND status='pending'", (req_id,)).fetchone()
+    if not row:
+        conn.close()
+        raise HTTPException(404, "申請が見つかりません。")
+    conn.execute(
+        "UPDATE overtime_requests SET status='rejected', approved_by=?, approved_at=datetime('now','localtime') WHERE id=?",
+        (user["id"], req_id),
+    )
+    conn.commit()
+    conn.close()
+    return {"ok": True}
 
 
 @app.get("/api/health")
