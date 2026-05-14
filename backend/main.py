@@ -1466,9 +1466,10 @@ def admin_get_sales(year: int = None, month: int = None, employee_id: str = None
     return {"entries": [dict(r) for r in rows]}
 
 
-# ── 残業申請（従業員） ────────────────────────────────────────────────────────
+# ── 残業申請 ─────────────────────────────────────────────────────────────────
 
 class OvertimeReq(BaseModel):
+    employee_id: str
     work_date: str
     planned_end: Optional[str] = None
     reason: Optional[str] = None
@@ -1493,11 +1494,21 @@ def get_my_overtime(year: int = None, month: int = None, user=Depends(get_curren
 
 @app.post("/api/overtime")
 def create_overtime(req: OvertimeReq, user=Depends(get_current_user)):
+    require_admin(user)  # 管理職以上のみ申請可能
     conn = get_conn()
+    emp = conn.execute(
+        "SELECT id, department_id FROM users WHERE employee_id=? AND is_active=1", (req.employee_id,)
+    ).fetchone()
+    if not emp:
+        conn.close()
+        raise HTTPException(404, "従業員が見つかりません。")
+    if user["role"] == "manager" and user.get("department_id") != emp["department_id"]:
+        conn.close()
+        raise HTTPException(403, "自部署の従業員のみ申請できます。")
     try:
         conn.execute(
             "INSERT INTO overtime_requests (user_id, work_date, planned_end, reason) VALUES (?,?,?,?)",
-            (user["id"], req.work_date, req.planned_end or None, req.reason or None),
+            (emp["id"], req.work_date, req.planned_end or None, req.reason or None),
         )
         conn.commit()
     except Exception:
@@ -1509,11 +1520,18 @@ def create_overtime(req: OvertimeReq, user=Depends(get_current_user)):
 
 @app.delete("/api/overtime/{req_id}")
 def delete_overtime(req_id: int, user=Depends(get_current_user)):
+    require_admin(user)
     conn = get_conn()
-    row = conn.execute("SELECT user_id, status FROM overtime_requests WHERE id=?", (req_id,)).fetchone()
-    if not row or row["user_id"] != user["id"]:
+    row = conn.execute(
+        """SELECT o.id, o.status, u.department_id FROM overtime_requests o
+           JOIN users u ON o.user_id=u.id WHERE o.id=?""", (req_id,)
+    ).fetchone()
+    if not row:
         conn.close()
         raise HTTPException(404, "申請が見つかりません。")
+    if user["role"] == "manager" and user.get("department_id") != row["department_id"]:
+        conn.close()
+        raise HTTPException(403, "自部署の申請のみ取り消せます。")
     if row["status"] != "pending":
         conn.close()
         raise HTTPException(400, "承認済み・却下済みの申請は取り消せません。")
@@ -1559,7 +1577,7 @@ def admin_overtime_list(year: int = None, month: int = None, status: str = "", d
 
 @app.post("/api/admin/overtime/{req_id}/approve")
 def admin_approve_overtime(req_id: int, user=Depends(get_current_user)):
-    require_admin(user)
+    require_super_admin(user)  # 総務部（super_admin）のみ承認可
     conn = get_conn()
     row = conn.execute("SELECT id FROM overtime_requests WHERE id=? AND status='pending'", (req_id,)).fetchone()
     if not row:
@@ -1575,7 +1593,7 @@ def admin_approve_overtime(req_id: int, user=Depends(get_current_user)):
 
 @app.post("/api/admin/overtime/{req_id}/reject")
 def admin_reject_overtime(req_id: int, user=Depends(get_current_user)):
-    require_admin(user)
+    require_super_admin(user)  # 総務部（super_admin）のみ却下可
     conn = get_conn()
     row = conn.execute("SELECT id FROM overtime_requests WHERE id=? AND status='pending'", (req_id,)).fetchone()
     if not row:

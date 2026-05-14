@@ -294,7 +294,10 @@
 
       <!-- 残業申請 -->
       <div id="section-overtime" class="hidden">
-        <h2 style="font-size:1.2rem;font-weight:800;color:var(--primary);margin-bottom:20px">残業申請管理</h2>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:12px">
+          <h2 style="font-size:1.2rem;font-weight:800;color:var(--primary)">残業申請管理</h2>
+          <button class="btn-primary" style="width:auto;padding:10px 20px" onclick="openOvertimeSubmitModal()">＋ 残業申請（部下）</button>
+        </div>
         <div class="card" style="margin-bottom:16px">
           <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end">
             <div class="form-group" style="margin:0;flex:1;min-width:100px"><label>年</label><select id="ot-adm-year"></select></div>
@@ -527,6 +530,21 @@
       <div class="modal-footer">
         <button class="btn-outline" onclick="closeEmpModal()">キャンセル</button>
         <button class="btn-primary" style="width:auto;padding:10px 24px" onclick="saveEmployee()">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 残業申請 モーダル（管理職が部下に対して申請） -->
+  <div id="overtime-submit-modal" class="modal-overlay hidden">
+    <div class="modal" style="max-width:420px">
+      <div class="modal-title">残業申請（部下）</div>
+      <div class="form-group"><label>従業員 <span style="color:var(--danger)">*</span></label><select id="ot-emp-sel" style="width:100%"></select></div>
+      <div class="form-group"><label>日付 <span style="color:var(--danger)">*</span></label><input type="date" id="ot-sub-date"></div>
+      <div class="form-group"><label>予定終了時刻</label><input type="time" id="ot-sub-end"></div>
+      <div class="form-group"><label>理由</label><textarea id="ot-sub-reason" rows="3" placeholder="残業理由を入力" style="width:100%;resize:vertical"></textarea></div>
+      <div class="modal-footer">
+        <button class="btn-outline" onclick="closeOvertimeSubmitModal()">キャンセル</button>
+        <button class="btn-primary" style="width:auto;padding:10px 24px" onclick="submitOvertime()">申請する</button>
       </div>
     </div>
   </div>

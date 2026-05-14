@@ -662,48 +662,10 @@ function renderOvertime() {
         ${r.overtime_minutes != null ? `<span>残業: <strong>${Math.floor(r.overtime_minutes/60)}h${r.overtime_minutes%60?r.overtime_minutes%60+'m':''}</strong></span>` : ''}
       </div>
       ${r.reason ? `<div style="font-size:0.83rem;color:var(--text-muted)">${r.reason}</div>` : ''}
-      ${r.status === 'pending' ? `<div style="margin-top:8px"><button class="btn-outline btn-sm" style="color:var(--danger);border-color:var(--danger)" onclick="deleteOvertime(${r.id})">取り消し</button></div>` : ''}
     </div>
   `).join('');
 }
 
-function openOvertimeModal() {
-  const today = new Date().toISOString().slice(0, 10);
-  document.getElementById('ot-date').value = today;
-  document.getElementById('ot-planned-end').value = '';
-  document.getElementById('ot-reason').value = '';
-  document.getElementById('overtime-modal').classList.remove('hidden');
-}
-
-function closeOvertimeModal() {
-  document.getElementById('overtime-modal').classList.add('hidden');
-}
-
-async function saveOvertime() {
-  const date = document.getElementById('ot-date').value;
-  if (!date) { alert('日付を入力してください'); return; }
-  const body = {
-    work_date: date,
-    planned_end: document.getElementById('ot-planned-end').value || null,
-    reason: document.getElementById('ot-reason').value.trim() || null,
-  };
-  try {
-    const res = await api('/api/overtime', 'POST', body);
-    const d = await res.json();
-    if (!res.ok) { alert(d.detail || 'エラーが発生しました'); return; }
-    closeOvertimeModal();
-    loadOvertime();
-  } catch(e) { alert('通信エラーが発生しました'); }
-}
-
-async function deleteOvertime(id) {
-  if (!confirm('この申請を取り消しますか？')) return;
-  try {
-    const res = await api(`/api/overtime/${id}`, 'DELETE');
-    if (!res.ok) { const d = await res.json(); alert(d.detail || 'エラー'); return; }
-    loadOvertime();
-  } catch(e) { alert('通信エラーが発生しました'); }
-}
 
 // ── ログアウト ──
 function logout() {
