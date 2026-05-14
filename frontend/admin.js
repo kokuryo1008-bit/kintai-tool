@@ -316,6 +316,46 @@ function exportCSV() {
   a.click();
 }
 
+function exportMonthlySummaryCSV() {
+  if (!allAttendance.length) { alert('データがありません'); return; }
+  // 人別に集計
+  const map = new Map();
+  allAttendance.forEach(r => {
+    const key = r.name + '|' + (r.department || '');
+    if (!map.has(key)) {
+      map.set(key, { name: r.name, department: r.department || '', days: 0, workMin: 0, otMin: 0 });
+    }
+    const e = map.get(key);
+    if (r.clock_in) e.days++;
+    e.workMin += r.work_minutes || 0;
+    e.otMin += r.overtime_minutes || 0;
+  });
+  const year = document.getElementById('att-year').value;
+  const month = document.getElementById('att-month').value;
+  const headers = ['氏名','部署','出勤日数','総勤務時間','総残業時間','平均勤務時間/日'];
+  const rows = [...map.values()].map(e => {
+    const avgMin = e.days > 0 ? Math.round(e.workMin / e.days) : 0;
+    return [
+      e.name, e.department, e.days,
+      fmtMinDecimal(e.workMin),
+      fmtMinDecimal(e.otMin),
+      fmtMinDecimal(avgMin),
+    ];
+  });
+  const csv = [headers, ...rows].map(r => r.map(v => `"${v}"`).join(',')).join('\n');
+  const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `勤怠月集計_${year}_${month}.csv`;
+  a.click();
+}
+
+function fmtMinDecimal(min) {
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  return m === 0 ? `${h}:00` : `${h}:${String(m).padStart(2,'0')}`;
+}
+
 // ── 有給申請管理 ──
 async function loadLeave(filter = 'pending') {
   try {

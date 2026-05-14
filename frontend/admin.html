@@ -94,7 +94,10 @@
               <label>部署</label><select id="att-dept"><option value="">全部署</option></select>
             </div>
             <button class="btn-outline" onclick="loadAttendance()">表示</button>
-            <button class="btn-outline btn-sm" onclick="exportCSV()" style="margin-left:auto">CSV出力</button>
+            <div style="margin-left:auto;display:flex;gap:6px">
+              <button class="btn-outline btn-sm" onclick="exportCSV()">日別CSV</button>
+              <button class="btn-outline btn-sm" onclick="exportMonthlySummaryCSV()" style="border-color:var(--primary);color:var(--primary)">月集計CSV</button>
+            </div>
           </div>
         </div>
         <div class="card">
