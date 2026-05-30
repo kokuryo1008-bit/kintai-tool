@@ -148,6 +148,7 @@ def login(req: LoginReq):
         "token": create_token(user["id"], user["role"]),
         "role": user["role"],
         "name": user["name"],
+        "employee_id": user["employee_id"],
         "department_id": user["department_id"],
     }
 
@@ -788,6 +789,25 @@ def shift_mine(year: int = None, month: int = None, user=Depends(get_current_use
         "SELECT shift_date, start_time, end_time, note FROM shifts WHERE user_id=? AND strftime('%Y-%m', shift_date)=? ORDER BY shift_date",
         (user["id"], f"{y:04d}-{m:02d}"),
     ).fetchall()
+    conn.close()
+    return {"shifts": [dict(r) for r in rows]}
+
+
+@app.get("/api/shifts")
+def get_shifts_all(year: int = None, month: int = None, user=Depends(get_current_user)):
+    today = datetime.now(JST).date()
+    y = year or today.year
+    m = month or today.month
+    conn = get_conn()
+    rows = conn.execute("""
+        SELECT u.name, u.employee_id, d.name as department,
+               s.shift_date, s.start_time, s.end_time, s.note
+        FROM shifts s
+        JOIN users u ON s.user_id=u.id
+        LEFT JOIN departments d ON u.department_id=d.id
+        WHERE strftime('%Y-%m', s.shift_date)=?
+        ORDER BY s.shift_date, d.name, u.employee_id
+    """, [f"{y:04d}-{m:02d}"]).fetchall()
     conn.close()
     return {"shifts": [dict(r) for r in rows]}
 

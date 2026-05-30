@@ -67,10 +67,26 @@
     <div class="card">
       <div class="tabs">
         <button class="tab-btn active" onclick="showTab('history')">勤務履歴</button>
+        <button class="tab-btn" onclick="showTab('shift')">シフト表</button>
         <button class="tab-btn" onclick="showTab('leave')">有給申請</button>
         <button class="tab-btn" onclick="showTab('report')">日報</button>
         <button class="tab-btn" onclick="showTab('sales')">営業報告</button>
         <button class="tab-btn" onclick="showTab('overtime')">残業申請</button>
+      </div>
+
+      <!-- シフト表 -->
+      <div id="tab-shift" class="hidden">
+        <div style="display:flex;gap:8px;margin-bottom:12px;align-items:center;flex-wrap:wrap">
+          <select id="shift-emp-year" style="width:auto"></select>
+          <select id="shift-emp-month" style="width:auto"></select>
+          <button class="btn-outline btn-sm" onclick="loadShiftTable()">表示</button>
+        </div>
+        <div style="overflow-x:auto">
+          <table id="shift-emp-table" style="min-width:600px;font-size:0.78rem;border-collapse:collapse">
+            <thead id="shift-emp-thead"></thead>
+            <tbody id="shift-emp-tbody"></tbody>
+          </table>
+        </div>
       </div>
 
       <!-- 勤務履歴 -->

@@ -268,16 +268,109 @@ async function submitTrip() {
 
 // ── タブ ──
 function showTab(name) {
-  ['history','leave','report','sales','overtime'].forEach(t => {
+  ['history','shift','leave','report','sales','overtime'].forEach(t => {
     document.getElementById('tab-' + t).classList.toggle('hidden', t !== name);
   });
   document.querySelectorAll('.tab-btn').forEach((btn, i) => {
-    btn.classList.toggle('active', ['history','leave','report','sales','overtime'][i] === name);
+    btn.classList.toggle('active', ['history','shift','leave','report','sales','overtime'][i] === name);
   });
+  if (name === 'shift') loadShiftTable();
   if (name === 'leave') loadLeaveInfo();
   if (name === 'report') loadReport();
   if (name === 'sales') loadSales();
   if (name === 'overtime') loadOvertime();
+}
+
+// ── シフト表 ──
+(function initShiftSelects() {
+  const now = new Date();
+  const ysel = document.getElementById('shift-emp-year');
+  for (let y = now.getFullYear(); y >= now.getFullYear() - 1; y--) {
+    const o = document.createElement('option');
+    o.value = y; o.textContent = y + '年';
+    if (y === now.getFullYear()) o.selected = true;
+    ysel.appendChild(o);
+  }
+  // 翌月まで選択可能
+  for (let y = now.getFullYear(); y <= now.getFullYear() + 1; y++) {
+    const exists = [...ysel.options].some(o => o.value == y);
+    if (!exists) {
+      const o = document.createElement('option');
+      o.value = y; o.textContent = y + '年';
+      ysel.appendChild(o);
+    }
+  }
+  const msel = document.getElementById('shift-emp-month');
+  for (let m = 1; m <= 12; m++) {
+    const o = document.createElement('option');
+    o.value = m; o.textContent = m + '月';
+    if (m === now.getMonth() + 1) o.selected = true;
+    msel.appendChild(o);
+  }
+})();
+
+const myEmployeeId = localStorage.getItem('employee_id');
+
+async function loadShiftTable() {
+  const year = document.getElementById('shift-emp-year').value;
+  const month = document.getElementById('shift-emp-month').value;
+  try {
+    const res = await api(`/api/shifts?year=${year}&month=${month}`);
+    const d = await res.json();
+    if (!res.ok) return;
+    renderShiftTable(d.shifts || [], parseInt(year), parseInt(month));
+  } catch(e) {}
+}
+
+function renderShiftTable(shifts, year, month) {
+  const thead = document.getElementById('shift-emp-thead');
+  const tbody = document.getElementById('shift-emp-tbody');
+
+  const daysInMonth = new Date(year, month, 0).getDate();
+  const DOW = ['日','月','火','水','木','金','土'];
+
+  // 日付ヘッダー
+  let headHtml = '<tr><th style="position:sticky;left:0;background:#F8FAFC;z-index:1;white-space:nowrap;padding:6px 10px;border:1px solid #E2E8F0">氏名</th>';
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dt = new Date(year, month - 1, d);
+    const dow = dt.getDay();
+    const color = dow === 0 ? 'color:#EF4444' : dow === 6 ? 'color:#3B82F6' : '';
+    headHtml += `<th style="min-width:54px;text-align:center;padding:4px 2px;border:1px solid #E2E8F0;${color}">${d}<br><span style="font-size:0.7rem">${DOW[dow]}</span></th>`;
+  }
+  headHtml += '</tr>';
+  thead.innerHTML = headHtml;
+
+  // 従業員ごとにシフトをまとめる
+  const empMap = {};
+  shifts.forEach(s => {
+    const key = s.employee_id;
+    if (!empMap[key]) empMap[key] = { name: s.name, department: s.department, dates: {} };
+    empMap[key].dates[s.shift_date] = { start: s.start_time, end: s.end_time };
+  });
+
+  if (!Object.keys(empMap).length) {
+    tbody.innerHTML = `<tr><td colspan="${daysInMonth + 1}" style="text-align:center;color:#94A3B8;padding:20px">シフトが登録されていません</td></tr>`;
+    return;
+  }
+
+  let bodyHtml = '';
+  Object.entries(empMap).forEach(([empId, emp]) => {
+    const isMe = empId === myEmployeeId;
+    const rowBg = isMe ? 'background:#EFF6FF' : '';
+    bodyHtml += `<tr style="${rowBg}">`;
+    bodyHtml += `<td style="position:sticky;left:0;background:${isMe ? '#EFF6FF' : '#F8FAFC'};z-index:1;white-space:nowrap;padding:6px 10px;border:1px solid #E2E8F0;font-weight:${isMe ? '700' : '400'}">${emp.name}${isMe ? ' 👤' : ''}</td>`;
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dateStr = `${year}-${String(month).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+      const shift = emp.dates[dateStr];
+      if (shift) {
+        bodyHtml += `<td style="text-align:center;padding:3px 2px;border:1px solid #E2E8F0;font-size:0.7rem;white-space:nowrap;background:${isMe ? '#DBEAFE' : '#F0FDF4'};color:${isMe ? '#1D4ED8' : '#065F46'}">${shift.start.slice(0,5)}<br>${shift.end.slice(0,5)}</td>`;
+      } else {
+        bodyHtml += `<td style="border:1px solid #E2E8F0"></td>`;
+      }
+    }
+    bodyHtml += '</tr>';
+  });
+  tbody.innerHTML = bodyHtml;
 }
 
 // ── 日報 ──
