@@ -555,6 +555,15 @@
         </select>
       </div>
       <div class="form-group"><label>有給残日数</label><input type="number" id="m-emp-leave" min="0" max="40" step="0.5" value="10"></div>
+      <!-- 個人勤務時間（空欄=部署/会社設定に従う） -->
+      <div style="background:#F8FAFC;border-radius:10px;padding:12px 14px;margin-bottom:16px">
+        <div style="font-size:0.82rem;font-weight:700;color:var(--text-muted);margin-bottom:10px">⏰ 個人の勤務時間（空欄=部署・会社設定を使用）</div>
+        <div style="display:flex;gap:12px">
+          <div class="form-group" style="margin:0;flex:1"><label>勤務開始</label><input type="time" id="m-emp-work-start"></div>
+          <div class="form-group" style="margin:0;flex:1"><label>勤務終了</label><input type="time" id="m-emp-work-end"></div>
+        </div>
+        <div style="font-size:0.75rem;color:var(--text-muted);margin-top:6px">残業計算の優先順位: 当日シフト → ここの設定 → 部署定時 → 会社所定時間</div>
+      </div>
       <!-- PIN表示（新規登録時のみ） -->
       <div id="pin-display" class="hidden" style="background:#EFF6FF;border-radius:10px;padding:14px;margin-bottom:16px">
         <div style="font-size:0.82rem;color:var(--text-muted);margin-bottom:6px">🔑 ログインPIN（従業員に口頭で伝えてください）</div>
@@ -599,6 +608,6 @@
   </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-  <script src="/static/admin.js?v=3"></script>
+  <script src="/static/admin.js?v=4"></script>
 </body>
 </html>

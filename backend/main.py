@@ -107,14 +107,28 @@ def _calc_hours(conn, user_id: int, work_date: str):
     break_min = int(company["break_minutes"] if company and company["break_minutes"] is not None else 60)
     total = max(0, total_raw - break_min)  # 実働時間
 
-    # 部署の定時終了時刻を優先、なければ会社の所定労働時間で計算
-    dept_row = conn.execute(
-        "SELECT d.dept_work_end FROM users u LEFT JOIN departments d ON u.department_id=d.id WHERE u.id=?",
+    # 残業判定の優先順位: 当日シフト → 個人デフォルト → 部署定時 → 会社所定時間
+    shift_row = conn.execute(
+        "SELECT end_time FROM shifts WHERE user_id=? AND shift_date=?",
+        (user_id, work_date),
+    ).fetchone()
+
+    user_row = conn.execute(
+        "SELECT u.work_end, d.dept_work_end FROM users u LEFT JOIN departments d ON u.department_id=d.id WHERE u.id=?",
         (user_id,),
     ).fetchone()
-    if dept_row and dept_row["dept_work_end"]:
-        work_end = datetime.strptime(f"{work_date} {dept_row['dept_work_end']}", "%Y-%m-%d %H:%M")
-        overtime_raw = max(0, int((co - work_end).total_seconds() / 60))
+
+    end_time_str = None
+    if shift_row and shift_row["end_time"]:
+        end_time_str = shift_row["end_time"][:5]        # シフト終了時刻
+    elif user_row and user_row["work_end"]:
+        end_time_str = user_row["work_end"]             # 個人デフォルト終了時刻
+    elif user_row and user_row["dept_work_end"]:
+        end_time_str = user_row["dept_work_end"]        # 部署定時
+
+    if end_time_str:
+        work_end_dt = datetime.strptime(f"{work_date} {end_time_str}", "%Y-%m-%d %H:%M")
+        overtime_raw = max(0, int((co - work_end_dt).total_seconds() / 60))
     else:
         std_min = int((company["work_hours"] if company else 8.0) * 60)
         overtime_raw = max(0, total - std_min)
@@ -546,6 +560,8 @@ class EmpCreate(BaseModel):
     position: Optional[str] = None
     role: str = "employee"
     leave_remaining: float = 10.0
+    work_start: Optional[str] = None
+    work_end: Optional[str] = None
 
 class EmpUpdate(BaseModel):
     name: Optional[str] = None
@@ -554,6 +570,8 @@ class EmpUpdate(BaseModel):
     position: Optional[str] = None
     role: Optional[str] = None
     leave_remaining: Optional[float] = None
+    work_start: Optional[str] = None
+    work_end: Optional[str] = None
 
 @app.get("/api/admin/employees")
 def admin_list_employees(department_id: int = None, user=Depends(get_current_user)):
@@ -581,7 +599,8 @@ def admin_get_employee(emp_id: str, user=Depends(get_current_user)):
     conn = get_conn()
     row = conn.execute("""
         SELECT u.employee_id, u.name, u.position, u.role, u.department_id,
-               (u.annual_leave - COALESCE(u.used_leave,0)) as leave_remaining
+               (u.annual_leave - COALESCE(u.used_leave,0)) as leave_remaining,
+               u.work_start, u.work_end
         FROM users u WHERE u.employee_id=? AND u.is_active=1
     """, (emp_id,)).fetchone()
     conn.close()
@@ -605,10 +624,11 @@ def admin_create_employee(req: EmpCreate, user=Depends(get_current_user)):
     conn = get_conn()
     try:
         conn.execute("""
-            INSERT INTO users (employee_id, name, role, department_id, position, password_hash, pin_hash, annual_leave, hire_date)
-            VALUES (?,?,?,?,?,?,?,?,?)
+            INSERT INTO users (employee_id, name, role, department_id, position, password_hash, pin_hash, annual_leave, hire_date, work_start, work_end)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?)
         """, (req.employee_id.strip(), req.name.strip(), role, dept_id,
-              req.position, pw_hash, pw_hash, req.leave_remaining, datetime.now(JST).date().isoformat()))
+              req.position, pw_hash, pw_hash, req.leave_remaining, datetime.now(JST).date().isoformat(),
+              req.work_start or None, req.work_end or None))
         conn.commit()
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"登録エラー: {str(e)}")
@@ -633,6 +653,10 @@ def admin_update_employee(emp_id: str, req: EmpUpdate, user=Depends(get_current_
         conn.execute("UPDATE users SET role=? WHERE employee_id=?", (req.role, emp_id))
     if req.leave_remaining is not None:
         conn.execute("UPDATE users SET annual_leave=?, used_leave=0 WHERE employee_id=?", (req.leave_remaining, emp_id))
+    if req.work_start is not None:
+        conn.execute("UPDATE users SET work_start=? WHERE employee_id=?", (req.work_start or None, emp_id))
+    if req.work_end is not None:
+        conn.execute("UPDATE users SET work_end=? WHERE employee_id=?", (req.work_end or None, emp_id))
     conn.commit()
     conn.close()
     return {"ok": True}

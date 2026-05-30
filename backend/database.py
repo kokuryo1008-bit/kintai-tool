@@ -402,6 +402,15 @@ def init_db():
         try: conn.rollback()
         except Exception: pass
 
+    # Migration: per-user work schedule
+    for col in ("work_start TEXT DEFAULT NULL", "work_end TEXT DEFAULT NULL"):
+        try:
+            conn.execute(f"ALTER TABLE users ADD COLUMN {col}")
+            conn.commit()
+        except Exception:
+            try: conn.rollback()
+            except Exception: pass
+
     if not conn.execute("SELECT 1 FROM company WHERE id=1").fetchone():
         conn.execute("INSERT INTO company (id) VALUES (1)")
         conn.commit()

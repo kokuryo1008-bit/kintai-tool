@@ -155,6 +155,8 @@ async function openEmpModal(empId = null) {
       document.getElementById('m-emp-perm').value = e.role;
       document.getElementById('m-emp-leave').value = e.leave_remaining;
       document.getElementById('m-emp-dept').value = e.department_id || '';
+      document.getElementById('m-emp-work-start').value = e.work_start || '';
+      document.getElementById('m-emp-work-end').value = e.work_end || '';
     } catch(e) {}
   } else {
     document.getElementById('m-emp-id').disabled = false;
@@ -187,7 +189,9 @@ async function saveEmployee() {
     department_id: document.getElementById('m-emp-dept').value ? parseInt(document.getElementById('m-emp-dept').value) : null,
     position: document.getElementById('m-emp-role').value.trim(),
     role: document.getElementById('m-emp-perm').value,
-    leave_remaining: parseFloat(document.getElementById('m-emp-leave').value) || 10
+    leave_remaining: parseFloat(document.getElementById('m-emp-leave').value) || 10,
+    work_start: document.getElementById('m-emp-work-start').value || null,
+    work_end:   document.getElementById('m-emp-work-end').value   || null,
   };
   try {
     const method = editingEmpId ? 'PUT' : 'POST';
