@@ -19,35 +19,102 @@
       <label>PIN</label>
       <input type="password" id="password" placeholder="3桁のPIN" autocomplete="current-password" inputmode="numeric" maxlength="10">
     </div>
-    <button class="btn-primary" onclick="login()">ログイン</button>
+    <button class="btn-primary" id="login-btn" onclick="login()">ログイン</button>
     <div id="error-msg" class="error-msg hidden"></div>
+    <div id="wakeup-msg" class="hidden" style="margin-top:14px;padding:12px 16px;background:#EFF6FF;border-radius:10px;font-size:0.85rem;color:var(--primary);text-align:center;line-height:1.6">
+      <div style="font-size:1.2rem;margin-bottom:4px">⏳</div>
+      <div id="wakeup-text">サーバーを起動中です...</div>
+      <div style="font-size:0.75rem;color:var(--text-muted);margin-top:4px">しばらくお待ちください（最大60秒）</div>
+      <div style="margin-top:8px;height:4px;background:#DBEAFE;border-radius:2px;overflow:hidden">
+        <div id="progress-bar" style="height:100%;width:0%;background:var(--primary);border-radius:2px;transition:width 1s linear"></div>
+      </div>
+    </div>
   </div>
   <script>
+    let wakeupTimer = null;
+    let progressTimer = null;
+    let progressVal = 0;
+
     async function login() {
       const id = document.getElementById('employee-id').value.trim();
       const pw = document.getElementById('password').value;
       if (!id || !pw) { showError('社員IDとパスワードを入力してください。'); return; }
+
+      hideError();
+      setLoading(true);
+
+      // 5秒後もまだ待っていたらスリープ起動中メッセージを表示
+      wakeupTimer = setTimeout(() => showWakeup(), 5000);
+
       try {
-        const res = await fetch('/api/login', {
+        const res = await fetchWithRetry('/api/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ employee_id: id, password: pw })
-        });
+        }, 90000); // 最大90秒待つ
+
+        clearWakeup();
         const data = await res.json();
-        if (!res.ok) { showError(data.detail); return; }
+        if (!res.ok) { showError(data.detail); setLoading(false); return; }
         localStorage.setItem('token', data.token);
         localStorage.setItem('role', data.role);
         localStorage.setItem('name', data.name);
         localStorage.setItem('employee_id', data.employee_id);
         if (data.department_id) localStorage.setItem('department_id', data.department_id);
         location.href = data.role === 'employee' ? '/employee' : '/admin';
-      } catch (e) { showError('サーバーに接続できません。'); }
+      } catch (e) {
+        clearWakeup();
+        setLoading(false);
+        showError('サーバーに接続できません。時間をおいて再度お試しください。');
+      }
     }
+
+    // タイムアウト付きfetch（retryなし・1回で最大timeout ms待つ）
+    function fetchWithRetry(url, opts, timeout) {
+      return new Promise((resolve, reject) => {
+        const timer = setTimeout(() => reject(new Error('timeout')), timeout);
+        fetch(url, opts)
+          .then(res => { clearTimeout(timer); resolve(res); })
+          .catch(err => { clearTimeout(timer); reject(err); });
+      });
+    }
+
+    function showWakeup() {
+      document.getElementById('wakeup-msg').classList.remove('hidden');
+      // プログレスバー（60秒で100%）
+      progressVal = 0;
+      progressTimer = setInterval(() => {
+        progressVal = Math.min(progressVal + 100/60, 99);
+        document.getElementById('progress-bar').style.width = progressVal + '%';
+        const sec = Math.round((100 - progressVal) * 60 / 100);
+        document.getElementById('wakeup-text').textContent =
+          sec > 0 ? `サーバーを起動中です... あと約${sec}秒` : 'もうすぐ起動します...';
+      }, 1000);
+    }
+
+    function clearWakeup() {
+      clearTimeout(wakeupTimer);
+      clearInterval(progressTimer);
+      document.getElementById('wakeup-msg').classList.add('hidden');
+      document.getElementById('progress-bar').style.width = '0%';
+    }
+
+    function setLoading(loading) {
+      const btn = document.getElementById('login-btn');
+      btn.disabled = loading;
+      btn.textContent = loading ? '接続中...' : 'ログイン';
+    }
+
     function showError(msg) {
       const el = document.getElementById('error-msg');
       el.textContent = msg;
       el.classList.remove('hidden');
     }
+
+    function hideError() {
+      document.getElementById('error-msg').classList.add('hidden');
+    }
+
     document.addEventListener('keydown', e => { if (e.key === 'Enter') login(); });
   </script>
 </body>
