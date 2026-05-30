@@ -135,7 +135,7 @@ class LoginReq(BaseModel):
 def login(req: LoginReq):
     conn = get_conn()
     user = conn.execute(
-        "SELECT id, name, role, password_hash, pin_hash, department_id FROM users WHERE employee_id=? AND is_active=1",
+        "SELECT id, employee_id, name, role, password_hash, pin_hash, department_id FROM users WHERE employee_id=? AND is_active=1",
         (req.employee_id,),
     ).fetchone()
     conn.close()
