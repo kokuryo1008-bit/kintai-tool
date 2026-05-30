@@ -267,11 +267,13 @@ async function submitTrip() {
 }
 
 // ── タブ ──
+const TAB_NAMES = ['history','shift','leave','report','sales','overtime'];
+
 function showTab(name) {
-  ['history','shift','leave','report','sales','overtime'].forEach(t => {
-    document.getElementById('tab-' + t).classList.toggle('hidden', t !== name);
+  TAB_NAMES.forEach(t => {
+    const el = document.getElementById('tab-' + t);
+    if (el) el.style.display = (t === name) ? '' : 'none';
   });
-  // インデックス依存を避け、onclick属性からタブ名を直接読む
   document.querySelectorAll('.tab-btn').forEach(btn => {
     const m = btn.getAttribute('onclick')?.match(/showTab\('(\w+)'\)/);
     if (m) btn.classList.toggle('active', m[1] === name);
@@ -317,13 +319,20 @@ let currentShiftData = [];
 async function loadShiftTable() {
   const year = document.getElementById('shift-emp-year').value;
   const month = document.getElementById('shift-emp-month').value;
+  const status = document.getElementById('shift-status');
+  status.textContent = '読み込み中...';
+  document.getElementById('shift-emp-thead').innerHTML = '';
+  document.getElementById('shift-emp-tbody').innerHTML = '';
   try {
     const res = await api(`/api/shifts?year=${year}&month=${month}`);
     const d = await res.json();
-    if (!res.ok) return;
+    if (!res.ok) { status.textContent = 'エラー: ' + (d.detail || '取得失敗'); return; }
+    status.textContent = '';
     currentShiftData = d.shifts || [];
     renderShiftTable(currentShiftData, parseInt(year), parseInt(month));
-  } catch(e) {}
+  } catch(e) {
+    status.textContent = '通信エラーが発生しました。';
+  }
 }
 
 function exportShiftExcel() {
