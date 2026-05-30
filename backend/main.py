@@ -100,7 +100,12 @@ def _calc_hours(conn, user_id: int, work_date: str):
     co = datetime.strptime(f"{work_date} {row['clock_out']}", "%Y-%m-%d %H:%M:%S")
     if co < ci:
         co += timedelta(days=1)
-    total = int((co - ci).total_seconds() / 60)
+    total_raw = int((co - ci).total_seconds() / 60)
+
+    # 会社の休憩時間を取得して差し引く
+    company = conn.execute("SELECT work_hours, break_minutes FROM company WHERE id=1").fetchone()
+    break_min = int(company["break_minutes"] if company and company["break_minutes"] is not None else 60)
+    total = max(0, total_raw - break_min)  # 実働時間
 
     # 部署の定時終了時刻を優先、なければ会社の所定労働時間で計算
     dept_row = conn.execute(
@@ -111,7 +116,6 @@ def _calc_hours(conn, user_id: int, work_date: str):
         work_end = datetime.strptime(f"{work_date} {dept_row['dept_work_end']}", "%Y-%m-%d %H:%M")
         overtime_raw = max(0, int((co - work_end).total_seconds() / 60))
     else:
-        company = conn.execute("SELECT work_hours FROM company WHERE id=1").fetchone()
         std_min = int((company["work_hours"] if company else 8.0) * 60)
         overtime_raw = max(0, total - std_min)
 
@@ -182,6 +186,7 @@ class CompanySettingsReq(BaseModel):
 class WorkSettingsReq(BaseModel):
     work_hours_per_day: Optional[float] = None
     default_leave_days: Optional[float] = None
+    break_minutes: Optional[int] = None
 
 @app.get("/api/company/settings")
 def get_company_settings(user=Depends(get_current_user)):
@@ -196,6 +201,7 @@ def get_company_settings(user=Depends(get_current_user)):
         "gps_radius": d.get("gps_radius", 500),
         "work_hours_per_day": d.get("work_hours", 8.0),
         "default_leave_days": d.get("default_leave_days", 10),
+        "break_minutes": d.get("break_minutes", 60),
     }
 
 @app.put("/api/company/settings")
@@ -223,9 +229,10 @@ def update_work_settings(req: WorkSettingsReq, user=Depends(get_current_user)):
         UPDATE company SET
             work_hours=COALESCE(?, work_hours),
             default_leave_days=COALESCE(?, default_leave_days),
+            break_minutes=COALESCE(?, break_minutes),
             updated_at=datetime('now','localtime')
         WHERE id=1
-    """, (req.work_hours_per_day, req.default_leave_days))
+    """, (req.work_hours_per_day, req.default_leave_days, req.break_minutes))
     conn.commit()
     conn.close()
     return {"ok": True}

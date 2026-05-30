@@ -394,6 +394,14 @@ def init_db():
         except Exception:
             pass
 
+    # Migration: break_minutes column
+    try:
+        conn.execute("ALTER TABLE company ADD COLUMN break_minutes INTEGER DEFAULT 60")
+        conn.commit()
+    except Exception:
+        try: conn.rollback()
+        except Exception: pass
+
     if not conn.execute("SELECT 1 FROM company WHERE id=1").fetchone():
         conn.execute("INSERT INTO company (id) VALUES (1)")
         conn.commit()

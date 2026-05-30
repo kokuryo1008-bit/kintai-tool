@@ -426,6 +426,7 @@
         <div class="card" style="margin-bottom:16px">
           <div class="card-title">⏰ 勤務時間設定</div>
           <div class="form-group"><label>所定労働時間（時間/日）</label><input type="number" id="set-work-hours" min="1" max="12" step="0.5" placeholder="8"></div>
+          <div class="form-group"><label>休憩時間（分/日）</label><input type="number" id="set-break-minutes" min="0" max="120" step="5" placeholder="60"><span style="font-size:0.8rem;color:var(--text-muted);margin-left:8px">勤務時間・残業計算から自動で差し引かれます</span></div>
           <div class="form-group"><label>有給日数（初期付与）</label><input type="number" id="set-leave-days" min="0" max="40" step="0.5" placeholder="10"></div>
           <button class="btn-primary" style="max-width:200px" onclick="saveWorkSettings()">保存</button>
         </div>
@@ -598,6 +599,6 @@
   </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-  <script src="/static/admin.js?v=2"></script>
+  <script src="/static/admin.js?v=3"></script>
 </body>
 </html>

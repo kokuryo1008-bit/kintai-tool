@@ -770,6 +770,7 @@ async function loadSettings() {
       document.getElementById('set-lon').value = comp.office_lon || '';
       document.getElementById('set-radius').value = comp.gps_radius || 500;
       document.getElementById('set-work-hours').value = comp.work_hours_per_day || 8;
+      document.getElementById('set-break-minutes').value = comp.break_minutes ?? 60;
       document.getElementById('set-leave-days').value = comp.default_leave_days || 10;
     }
     const depts = await deptRes.json();
@@ -836,7 +837,8 @@ async function saveCompanySettings() {
 async function saveWorkSettings() {
   const body = {
     work_hours_per_day: parseFloat(document.getElementById('set-work-hours').value) || 8,
-    default_leave_days: parseFloat(document.getElementById('set-leave-days').value) || 10
+    default_leave_days: parseFloat(document.getElementById('set-leave-days').value) || 10,
+    break_minutes: parseInt(document.getElementById('set-break-minutes').value) || 60,
   };
   try {
     const res = await api('/api/company/work-settings', 'PUT', body);
