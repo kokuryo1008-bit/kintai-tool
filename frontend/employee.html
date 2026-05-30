@@ -65,13 +65,13 @@
 
     <!-- タブ -->
     <div class="card">
-      <div class="tabs">
-        <button class="tab-btn active" onclick="showTab('history')">勤務履歴</button>
-        <button class="tab-btn" onclick="showTab('shift')">シフト表</button>
-        <button class="tab-btn" onclick="showTab('leave')">有給申請</button>
-        <button class="tab-btn" onclick="showTab('report')">日報</button>
-        <button class="tab-btn" onclick="showTab('sales')">営業報告</button>
-        <button class="tab-btn" onclick="showTab('overtime')">残業申請</button>
+      <div class="tabs" style="overflow-x:auto;flex-wrap:nowrap;-webkit-overflow-scrolling:touch">
+        <button class="tab-btn active" onclick="showTab('history')" style="white-space:nowrap">勤務履歴</button>
+        <button class="tab-btn" onclick="showTab('shift')" style="white-space:nowrap">シフト表</button>
+        <button class="tab-btn" onclick="showTab('leave')" style="white-space:nowrap">有給申請</button>
+        <button class="tab-btn" onclick="showTab('report')" style="white-space:nowrap">日報</button>
+        <button class="tab-btn" onclick="showTab('sales')" style="white-space:nowrap">営業報告</button>
+        <button class="tab-btn" onclick="showTab('overtime')" style="white-space:nowrap">残業申請</button>
       </div>
 
       <!-- シフト表 -->

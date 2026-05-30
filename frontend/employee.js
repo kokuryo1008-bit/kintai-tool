@@ -271,8 +271,10 @@ function showTab(name) {
   ['history','shift','leave','report','sales','overtime'].forEach(t => {
     document.getElementById('tab-' + t).classList.toggle('hidden', t !== name);
   });
-  document.querySelectorAll('.tab-btn').forEach((btn, i) => {
-    btn.classList.toggle('active', ['history','shift','leave','report','sales','overtime'][i] === name);
+  // インデックス依存を避け、onclick属性からタブ名を直接読む
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    const m = btn.getAttribute('onclick')?.match(/showTab\('(\w+)'\)/);
+    if (m) btn.classList.toggle('active', m[1] === name);
   });
   if (name === 'shift') loadShiftTable();
   if (name === 'leave') loadLeaveInfo();
