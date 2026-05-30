@@ -31,6 +31,15 @@
     </div>
   </div>
   <script>
+    // 既存トークンがあれば自動ログイン
+    (function() {
+      const token = localStorage.getItem('token');
+      const role  = localStorage.getItem('role');
+      if (token && role) {
+        location.replace((role === 'employee' ? '/employee' : '/admin') + '?_=' + Date.now());
+      }
+    })();
+
     let wakeupTimer = null;
     let progressTimer = null;
     let progressVal = 0;

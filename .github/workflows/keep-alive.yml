@@ -1,0 +1,18 @@
+name: Keep Alive
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'  # 10分ごとに実行
+  workflow_dispatch:         # 手動実行も可能
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping server
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://kintai-tool.onrender.com/api/health)
+          echo "Response: $STATUS"
+          if [ "$STATUS" != "200" ]; then
+            echo "Warning: server returned $STATUS"
+          fi
