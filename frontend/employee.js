@@ -278,7 +278,7 @@ function showTab(name) {
     const m = btn.getAttribute('onclick')?.match(/showTab\('(\w+)'\)/);
     if (m) btn.classList.toggle('active', m[1] === name);
   });
-  if (name === 'shift') loadShiftTable();
+  if (name === 'shift') setShiftView(shiftViewMode);
   if (name === 'leave') loadLeaveInfo();
   if (name === 'report') loadReport();
   if (name === 'sales') loadSales();
@@ -315,6 +315,112 @@ function showTab(name) {
 
 const myEmployeeId = localStorage.getItem('employee_id');
 let currentShiftData = [];
+let shiftViewMode = 'weekly';
+
+// ── シフト表示モード切替 ──
+function setShiftView(mode) {
+  shiftViewMode = mode;
+  const btnWeek  = document.getElementById('shift-btn-week');
+  const btnMonth = document.getElementById('shift-btn-month');
+  const ctrl     = document.getElementById('shift-monthly-ctrl');
+  const primary  = getComputedStyle(document.documentElement).getPropertyValue('--primary').trim() || '#1E40AF';
+  btnWeek.style.background  = mode === 'weekly'  ? 'var(--primary)' : 'white';
+  btnWeek.style.color       = mode === 'weekly'  ? 'white' : 'var(--text-muted)';
+  btnMonth.style.background = mode === 'monthly' ? 'var(--primary)' : 'white';
+  btnMonth.style.color      = mode === 'monthly' ? 'white' : 'var(--text-muted)';
+  ctrl.style.display = mode === 'monthly' ? 'flex' : 'none';
+  if (mode === 'weekly') loadWeeklyShifts();
+  else loadShiftTable();
+}
+
+// ── 今日から7日間シフト ──
+async function loadWeeklyShifts() {
+  const status = document.getElementById('shift-status');
+  status.textContent = '読み込み中...';
+  document.getElementById('shift-emp-thead').innerHTML = '';
+  document.getElementById('shift-emp-tbody').innerHTML = '';
+
+  const today = new Date();
+  const dates = Array.from({length: 7}, (_, i) => {
+    const d = new Date(today);
+    d.setDate(today.getDate() + i);
+    return d;
+  });
+
+  // 必要な年月を取得（週が月をまたぐ場合2ヶ月）
+  const ymSet = new Set(dates.map(d => `${d.getFullYear()}_${d.getMonth() + 1}`));
+  const allShifts = [];
+  try {
+    for (const ym of ymSet) {
+      const [y, m] = ym.split('_');
+      const res = await api(`/api/shifts?year=${y}&month=${m}`);
+      const d = await res.json();
+      if (res.ok) allShifts.push(...(d.shifts || []));
+    }
+    status.textContent = '';
+    currentShiftData = allShifts;
+    renderWeeklyShiftTable(allShifts, dates);
+  } catch(e) {
+    status.textContent = '通信エラーが発生しました。';
+  }
+}
+
+function renderWeeklyShiftTable(shifts, dates) {
+  const thead  = document.getElementById('shift-emp-thead');
+  const tbody  = document.getElementById('shift-emp-tbody');
+  const DOW    = ['日','月','火','水','木','金','土'];
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const dateStrs = dates.map(d => d.toISOString().slice(0, 10));
+
+  // ヘッダー
+  let headHtml = '<tr><th style="position:sticky;left:0;background:#F8FAFC;z-index:1;padding:6px 10px;border:1px solid #E2E8F0;white-space:nowrap">氏名</th>';
+  dates.forEach(dt => {
+    const ds  = dt.toISOString().slice(0, 10);
+    const dow = dt.getDay();
+    const isToday = ds === todayStr;
+    const tc  = dow === 0 ? '#EF4444' : dow === 6 ? '#3B82F6' : 'var(--text)';
+    const bg  = isToday ? 'background:#DBEAFE;' : '';
+    headHtml += `<th style="min-width:62px;text-align:center;padding:4px 2px;border:1px solid #E2E8F0;${bg}color:${tc}">
+      ${dt.getMonth()+1}/${dt.getDate()}<br>
+      <span style="font-size:0.68rem">${DOW[dow]}</span>
+      ${isToday ? '<br><span style="font-size:0.6rem;background:var(--primary);color:white;border-radius:3px;padding:0 3px">今日</span>' : ''}
+    </th>`;
+  });
+  headHtml += '</tr>';
+  thead.innerHTML = headHtml;
+
+  // 従業員マップ
+  const empMap = {};
+  shifts.filter(s => dateStrs.includes(s.shift_date)).forEach(s => {
+    if (!empMap[s.employee_id]) empMap[s.employee_id] = { name: s.name, department: s.department || '', dates: {} };
+    empMap[s.employee_id].dates[s.shift_date] = { start: s.start_time, end: s.end_time };
+  });
+
+  if (!Object.keys(empMap).length) {
+    tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;color:#94A3B8;padding:24px">この期間のシフトは登録されていません</td></tr>`;
+    return;
+  }
+
+  let bodyHtml = '';
+  Object.entries(empMap).forEach(([empId, emp]) => {
+    const isMe = empId === myEmployeeId;
+    const rowBg = isMe ? '#EFF6FF' : '';
+    bodyHtml += `<tr style="background:${rowBg}">`;
+    bodyHtml += `<td style="position:sticky;left:0;background:${isMe ? '#EFF6FF' : '#F8FAFC'};z-index:1;white-space:nowrap;padding:6px 10px;border:1px solid #E2E8F0;font-weight:${isMe ? '700' : '400'}">${emp.name}${isMe ? ' 👤' : ''}</td>`;
+    dateStrs.forEach(ds => {
+      const shift = emp.dates[ds];
+      const dow   = new Date(ds).getDay();
+      const bgBase = dow === 0 ? '#FFF8F8' : dow === 6 ? '#F0F5FF' : ds === todayStr ? '#F0F9FF' : 'white';
+      if (shift) {
+        bodyHtml += `<td style="text-align:center;padding:4px 2px;border:1px solid #E2E8F0;font-size:0.72rem;white-space:nowrap;background:${isMe ? '#DBEAFE' : '#F0FDF4'};color:${isMe ? '#1D4ED8' : '#065F46'}"><strong>${shift.start.slice(0,5)}</strong><br>${shift.end.slice(0,5)}</td>`;
+      } else {
+        bodyHtml += `<td style="border:1px solid #E2E8F0;background:${bgBase}"></td>`;
+      }
+    });
+    bodyHtml += '</tr>';
+  });
+  tbody.innerHTML = bodyHtml;
+}
 
 async function loadShiftTable() {
   const year = document.getElementById('shift-emp-year').value;
