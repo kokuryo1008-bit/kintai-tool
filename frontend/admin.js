@@ -421,7 +421,9 @@ async function saveAttEdit() {
     const res = await api(`/api/admin/attendance/${attId}`, 'PUT', { clock_in: clockIn + ':00', clock_out: clockOut ? clockOut + ':00' : null });
     if (!res.ok) { const d = await res.json(); alert(d.detail || 'エラー'); return; }
     closeAttEdit();
-    loadEmpDetail();
+    // 開いているビューを再読み込み
+    if (selectedEmpId) loadEmpDetail();
+    else loadAttendance();
   } catch(e) { alert('通信エラー'); }
 }
 
@@ -456,25 +458,13 @@ function renderAttendance() {
       <td>${r.clock_out ? r.clock_out.slice(0,5) : '--'}</td>
       <td>${r.work_minutes != null ? fmtMin(r.work_minutes) : '--'}</td>
       <td style="color:var(--warning)">${r.overtime_minutes ? fmtMin(r.overtime_minutes) : '--'}</td>
-      <td><button class="btn-outline btn-sm" onclick="openAttEdit(${r.id})">修正</button></td>
+      <td><button class="btn-outline btn-sm" onclick="openAttEdit(${r.id},'${r.date}','${r.clock_in||''}','${r.clock_out||''}')">修正</button></td>
     `;
     tbody.appendChild(tr);
   });
   if (!allAttendance.length) tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text-muted)">データなし</td></tr>';
 }
 
-let editingAttId = null;
-
-function openAttEdit(id) {
-  const r = allAttendance.find(a => a.id === id);
-  if (!r) return;
-  editingAttId = id;
-  document.getElementById('att-edit-info').innerHTML =
-    `<strong>${r.name}</strong><span style="color:var(--text-muted);margin-left:8px">${r.department || ''}</span><br><span style="color:var(--text-muted)">${r.date}</span>`;
-  document.getElementById('att-edit-in').value = r.clock_in ? r.clock_in.slice(0, 5) : '';
-  document.getElementById('att-edit-out').value = r.clock_out ? r.clock_out.slice(0, 5) : '';
-  document.getElementById('att-edit-modal').classList.remove('hidden');
-}
 
 
 function exportCSV() {
@@ -533,6 +523,104 @@ function fmtMinDecimal(min) {
   const h = Math.floor(min / 60);
   const m = min % 60;
   return m === 0 ? `${h}:00` : `${h}:${String(m).padStart(2,'0')}`;
+}
+
+// ── 個人別Excel出力 ───────────────────────────────────────────────────────────
+
+async function exportIndividualExcel() {
+  const year  = parseInt(document.getElementById('att-year').value);
+  const month = parseInt(document.getElementById('att-month').value);
+  const dept  = document.getElementById('att-dept').value;
+
+  // 従業員一覧を取得
+  let empRes;
+  try {
+    const url = dept ? `/api/admin/employees?department_id=${dept}` : '/api/admin/employees';
+    empRes = await api(url);
+  } catch(e) { alert('従業員データの取得に失敗しました'); return; }
+  const empData = await empRes.json();
+  const emps = empData.employees || [];
+  if (!emps.length) { alert('従業員が見つかりません'); return; }
+
+  const wb = XLSX.utils.book_new();
+  const DOW = ['日','月','火','水','木','金','土'];
+  const daysInMonth = new Date(year, month, 0).getDate();
+
+  // ── 全員サマリーシート ──
+  const summaryRows = [
+    [`${year}年${month}月 勤怠集計`],
+    [],
+    ['氏名', '部署', '役職', '出勤日数', '総勤務時間', '総残業時間', '平均勤務時間', '有給残'],
+  ];
+
+  // 各従業員のデータを並列取得
+  const allData = await Promise.all(emps.map(async emp => {
+    try {
+      const res = await api(`/api/admin/employees/${emp.employee_id}/monthly-summary?year=${year}&month=${month}`);
+      return res.ok ? await res.json() : null;
+    } catch(e) { return null; }
+  }));
+
+  // サマリー行を追加
+  allData.forEach((d, i) => {
+    if (!d) return;
+    const emp = emps[i];
+    summaryRows.push([
+      d.employee.name,
+      d.employee.department || '',
+      d.employee.position   || '',
+      d.work_days,
+      fmtMinDecimal(d.total_work_minutes),
+      fmtMinDecimal(d.total_overtime_minutes),
+      d.work_days > 0 ? fmtMinDecimal(Math.round(d.total_work_minutes / d.work_days)) : '--',
+      d.employee.leave_remaining + '日',
+    ]);
+  });
+
+  const wsSummary = XLSX.utils.aoa_to_sheet(summaryRows);
+  wsSummary['!cols'] = [14,12,10,8,10,10,12,8].map(w => ({ wch: w }));
+  XLSX.utils.book_append_sheet(wb, wsSummary, '全員集計');
+
+  // ── 個人別シート ──
+  allData.forEach((d, i) => {
+    if (!d) return;
+    const emp = emps[i];
+    const records = d.records || [];
+    const recMap  = {};
+    records.forEach(r => { recMap[r.date] = r; });
+
+    const sheetRows = [
+      [`${d.employee.name} ／ ${year}年${month}月`],
+      [`部署: ${d.employee.department || '--'}　役職: ${d.employee.position || '--'}　有給残: ${d.employee.leave_remaining}日`],
+      [],
+      [`出勤日数: ${d.work_days}日　総勤務: ${fmtMinDecimal(d.total_work_minutes)}　残業: ${fmtMinDecimal(d.total_overtime_minutes)}`],
+      [],
+      ['日付', '曜日', '出勤', '退勤', '勤務時間', '残業時間', '備考'],
+    ];
+
+    for (let day = 1; day <= daysInMonth; day++) {
+      const ds  = `${year}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+      const dow = new Date(ds).getDay();
+      const r   = recMap[ds];
+      sheetRows.push([
+        `${month}/${day}`,
+        DOW[dow],
+        r?.clock_in  ? r.clock_in.slice(0,5)  : '',
+        r?.clock_out ? r.clock_out.slice(0,5) : '',
+        r?.work_minutes     ? fmtMinDecimal(r.work_minutes)     : '',
+        r?.overtime_minutes ? fmtMinDecimal(r.overtime_minutes) : '',
+        '',
+      ]);
+    }
+
+    // シート名は15文字以内（Excel制限）
+    const sheetName = emp.name.slice(0, 12) + `_${month}月`;
+    const ws = XLSX.utils.aoa_to_sheet(sheetRows);
+    ws['!cols'] = [8,5,7,7,9,9,14].map(w => ({ wch: w }));
+    XLSX.utils.book_append_sheet(wb, ws, sheetName);
+  });
+
+  XLSX.writeFile(wb, `勤怠個人別_${year}年${month}月.xlsx`);
 }
 
 // ── 有給申請管理 ──
