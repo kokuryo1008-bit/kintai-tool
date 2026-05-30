@@ -85,31 +85,61 @@
 
       <!-- 勤怠一覧 -->
       <div id="section-attendance" class="hidden">
-        <h2 style="font-size:1.2rem;font-weight:800;color:var(--primary);margin-bottom:20px">勤怠一覧</h2>
-        <div class="card" style="margin-bottom:16px">
-          <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end">
-            <div class="form-group" style="margin:0;flex:1;min-width:120px">
-              <label>年</label><select id="att-year"></select>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:12px">
+          <h2 style="font-size:1.2rem;font-weight:800;color:var(--primary)">勤怠管理</h2>
+          <div style="display:flex;border:1px solid var(--border);border-radius:8px;overflow:hidden">
+            <button id="att-tab-list" onclick="showAttView('list')" style="padding:8px 18px;border:none;background:var(--primary);color:white;cursor:pointer;font-weight:700;font-size:0.85rem">📋 全員一覧</button>
+            <button id="att-tab-individual" onclick="showAttView('individual')" style="padding:8px 18px;border:none;background:white;color:var(--text-muted);cursor:pointer;font-weight:700;font-size:0.85rem">👤 個人別</button>
+          </div>
+        </div>
+
+        <!-- 全員一覧ビュー -->
+        <div id="att-view-list">
+          <div class="card" style="margin-bottom:16px">
+            <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end">
+              <div class="form-group" style="margin:0;flex:1;min-width:120px">
+                <label>年</label><select id="att-year"></select>
+              </div>
+              <div class="form-group" style="margin:0;flex:1;min-width:100px">
+                <label>月</label><select id="att-month"></select>
+              </div>
+              <div class="form-group" style="margin:0;flex:2;min-width:150px">
+                <label>部署</label><select id="att-dept"><option value="">全部署</option></select>
+              </div>
+              <button class="btn-outline" onclick="loadAttendance()">表示</button>
+              <div style="margin-left:auto;display:flex;gap:6px">
+                <button class="btn-outline btn-sm" onclick="exportCSV()">日別CSV</button>
+                <button class="btn-outline btn-sm" onclick="exportMonthlySummaryCSV()" style="border-color:var(--primary);color:var(--primary)">月集計CSV</button>
+              </div>
             </div>
-            <div class="form-group" style="margin:0;flex:1;min-width:100px">
-              <label>月</label><select id="att-month"></select>
-            </div>
-            <div class="form-group" style="margin:0;flex:2;min-width:150px">
-              <label>部署</label><select id="att-dept"><option value="">全部署</option></select>
-            </div>
-            <button class="btn-outline" onclick="loadAttendance()">表示</button>
-            <div style="margin-left:auto;display:flex;gap:6px">
-              <button class="btn-outline btn-sm" onclick="exportCSV()">日別CSV</button>
-              <button class="btn-outline btn-sm" onclick="exportMonthlySummaryCSV()" style="border-color:var(--primary);color:var(--primary)">月集計CSV</button>
+          </div>
+          <div class="card">
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>日付</th><th>氏名</th><th>部署</th><th>出勤</th><th>退勤</th><th>勤務時間</th><th>残業</th><th>操作</th></tr></thead>
+                <tbody id="att-body"></tbody>
+              </table>
             </div>
           </div>
         </div>
-        <div class="card">
-          <div class="table-wrap">
-            <table>
-              <thead><tr><th>日付</th><th>氏名</th><th>部署</th><th>出勤</th><th>退勤</th><th>勤務時間</th><th>残業</th><th>操作</th></tr></thead>
-              <tbody id="att-body"></tbody>
-            </table>
+
+        <!-- 個人別ビュー -->
+        <div id="att-view-individual" style="display:none">
+          <div style="display:grid;grid-template-columns:220px 1fr;gap:16px;align-items:start" id="att-individual-grid">
+
+            <!-- 従業員リスト -->
+            <div>
+              <input type="text" id="emp-search" placeholder="🔍 名前で絞り込み" oninput="filterEmpCards()" style="width:100%;margin-bottom:10px;border-radius:8px;border:1px solid var(--border);padding:8px 10px;font-size:0.85rem;box-sizing:border-box">
+              <div id="emp-card-list" style="display:flex;flex-direction:column;gap:6px;max-height:70vh;overflow-y:auto"></div>
+            </div>
+
+            <!-- 詳細パネル -->
+            <div id="emp-detail-panel">
+              <div style="text-align:center;padding:60px 20px;color:var(--text-muted)">
+                <div style="font-size:2.5rem;margin-bottom:12px">👤</div>
+                <div>左のリストから従業員を選択してください</div>
+              </div>
+            </div>
           </div>
         </div>
       </div>

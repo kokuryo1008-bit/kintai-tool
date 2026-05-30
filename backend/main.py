@@ -642,8 +642,40 @@ def admin_delete_employee(emp_id: str, user=Depends(get_current_user)):
 
 # ── 勤怠一覧（管理者） ────────────────────────────────────────────────────────
 
+@app.get("/api/admin/employees/{emp_id}/monthly-summary")
+def emp_monthly_summary(emp_id: str, year: int = None, month: int = None, user=Depends(get_current_user)):
+    require_admin(user)
+    today = datetime.now(JST).date()
+    y = year or today.year
+    m = month or today.month
+    conn = get_conn()
+    emp = conn.execute(
+        "SELECT u.id, u.name, u.employee_id, d.name as department, u.position, u.role, (u.annual_leave - COALESCE(u.used_leave,0)) as leave_remaining FROM users u LEFT JOIN departments d ON u.department_id=d.id WHERE u.employee_id=? AND u.is_active=1",
+        (emp_id,)
+    ).fetchone()
+    if not emp:
+        conn.close()
+        raise HTTPException(status_code=404, detail="従業員が見つかりません。")
+    rows = conn.execute(
+        "SELECT a.id, a.work_date as date, a.clock_in, a.clock_out, a.work_minutes, a.overtime_minutes FROM attendance a WHERE a.user_id=? AND strftime('%Y-%m', a.work_date)=? ORDER BY a.work_date",
+        (emp["id"], f"{y:04d}-{m:02d}")
+    ).fetchall()
+    records = [dict(r) for r in rows]
+    work_days     = sum(1 for r in records if r["clock_in"])
+    total_work    = sum(r["work_minutes"] or 0 for r in records)
+    total_overtime = sum(r["overtime_minutes"] or 0 for r in records)
+    conn.close()
+    return {
+        "employee": dict(emp),
+        "year": y, "month": m,
+        "work_days": work_days,
+        "total_work_minutes": total_work,
+        "total_overtime_minutes": total_overtime,
+        "records": records,
+    }
+
 @app.get("/api/admin/attendance")
-def admin_attendance(year: int = None, month: int = None, department_id: int = None, user=Depends(get_current_user)):
+def admin_attendance(year: int = None, month: int = None, department_id: int = None, employee_id: str = None, user=Depends(get_current_user)):
     require_admin(user)
     today = datetime.now(JST).date()
     y = year or today.year

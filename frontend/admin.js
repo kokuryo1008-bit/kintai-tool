@@ -231,6 +231,204 @@ async function deleteEmployee(empId, empName) {
   }
 })();
 
+// ── 勤怠ビュー切替 ───────────────────────────────────────────────────────────
+
+function showAttView(mode) {
+  document.getElementById('att-view-list').style.display       = mode === 'list'       ? '' : 'none';
+  document.getElementById('att-view-individual').style.display = mode === 'individual' ? '' : 'none';
+  document.getElementById('att-tab-list').style.background      = mode === 'list'       ? 'var(--primary)' : 'white';
+  document.getElementById('att-tab-list').style.color           = mode === 'list'       ? 'white' : 'var(--text-muted)';
+  document.getElementById('att-tab-individual').style.background = mode === 'individual' ? 'var(--primary)' : 'white';
+  document.getElementById('att-tab-individual').style.color      = mode === 'individual' ? 'white' : 'var(--text-muted)';
+  if (mode === 'individual') loadEmpCards();
+}
+
+// ── 個人別管理 ────────────────────────────────────────────────────────────────
+
+let empCardData = [];
+let selectedEmpId = null;
+
+async function loadEmpCards() {
+  if (empCardData.length) { renderEmpCards(empCardData); return; }
+  try {
+    const res = await api('/api/admin/employees');
+    const d = await res.json();
+    empCardData = d.employees || [];
+    renderEmpCards(empCardData);
+  } catch(e) {}
+}
+
+function filterEmpCards() {
+  const q = document.getElementById('emp-search').value.toLowerCase();
+  const filtered = empCardData.filter(e => e.name.toLowerCase().includes(q) || (e.department||'').toLowerCase().includes(q));
+  renderEmpCards(filtered);
+}
+
+function renderEmpCards(emps) {
+  const list = document.getElementById('emp-card-list');
+  list.innerHTML = '';
+  emps.forEach(e => {
+    const card = document.createElement('div');
+    const isSelected = e.employee_id === selectedEmpId;
+    card.style.cssText = `padding:10px 14px;border-radius:10px;cursor:pointer;border:2px solid ${isSelected ? 'var(--primary)' : 'var(--border)'};background:${isSelected ? '#EFF6FF' : 'white'};transition:.15s`;
+    card.innerHTML = `
+      <div style="font-weight:700;font-size:0.9rem;color:${isSelected ? 'var(--primary)' : 'var(--text)'}">${e.name}</div>
+      <div style="font-size:0.75rem;color:var(--text-muted)">${e.department || '--'} ${e.position ? '/ ' + e.position : ''}</div>
+      <div style="font-size:0.75rem;color:var(--accent);margin-top:2px">有給残 ${e.leave_remaining}日</div>
+    `;
+    card.onclick = () => selectEmployee(e.employee_id);
+    list.appendChild(card);
+  });
+}
+
+async function selectEmployee(empId) {
+  selectedEmpId = empId;
+  renderEmpCards(empCardData.filter(e => {
+    const q = document.getElementById('emp-search').value.toLowerCase();
+    return !q || e.name.toLowerCase().includes(q) || (e.department||'').toLowerCase().includes(q);
+  }));
+  await loadEmpDetail();
+}
+
+async function loadEmpDetail() {
+  if (!selectedEmpId) return;
+  const now = new Date();
+  const panel = document.getElementById('emp-detail-panel');
+  panel.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted)">読み込み中...</div>';
+
+  const detYear  = document.getElementById('det-year');
+  const detMonth = document.getElementById('det-month');
+  const y = detYear?.value  || now.getFullYear();
+  const m = detMonth?.value || (now.getMonth() + 1);
+
+  try {
+    const res = await api(`/api/admin/employees/${selectedEmpId}/monthly-summary?year=${y}&month=${m}`);
+    const d = await res.json();
+    if (!res.ok) { panel.innerHTML = '<div style="padding:20px;color:var(--danger)">エラーが発生しました</div>'; return; }
+    renderEmpDetail(d, parseInt(y), parseInt(m));
+  } catch(e) {
+    panel.innerHTML = '<div style="padding:20px;color:var(--danger)">通信エラー</div>';
+  }
+}
+
+function renderEmpDetail(data, year, month) {
+  const emp = data.employee;
+  const records = data.records || [];
+  const now = new Date();
+
+  const fmtMin = min => {
+    if (!min) return '--';
+    return Math.floor(min/60) + 'h' + (min%60 ? (min%60) + 'm' : '');
+  };
+
+  // 年月セレクト生成
+  let yearOpts = '', monthOpts = '';
+  for (let y = now.getFullYear() + 1; y >= now.getFullYear() - 2; y--) {
+    yearOpts += `<option value="${y}" ${y===year?'selected':''}>${y}年</option>`;
+  }
+  for (let m = 1; m <= 12; m++) {
+    monthOpts += `<option value="${m}" ${m===month?'selected':''}>${m}月</option>`;
+  }
+
+  // 日付ごとの行を生成
+  const daysInMonth = new Date(year, month, 0).getDate();
+  const DOW = ['日','月','火','水','木','金','土'];
+  const recMap = {};
+  records.forEach(r => { recMap[r.date] = r; });
+
+  let rows = '';
+  for (let d = 1; d <= daysInMonth; d++) {
+    const ds  = `${year}-${String(month).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const dow = new Date(ds).getDay();
+    const r   = recMap[ds];
+    const isWeekend = dow === 0 || dow === 6;
+    const isToday   = ds === now.toISOString().slice(0,10);
+    const rowBg = isToday ? 'background:#EFF6FF' : isWeekend ? 'background:#FAFAFA' : '';
+    const dowColor = dow===0 ? 'color:#EF4444' : dow===6 ? 'color:#3B82F6' : '';
+    rows += `<tr style="${rowBg}">
+      <td style="white-space:nowrap;font-weight:${isToday?700:400}">${month}/${d}</td>
+      <td style="${dowColor};font-weight:600">${DOW[dow]}</td>
+      <td style="color:var(--accent);font-weight:600">${r?.clock_in ? r.clock_in.slice(0,5) : '<span style="color:#CBD5E0">--</span>'}</td>
+      <td style="color:var(--danger)">${r?.clock_out ? r.clock_out.slice(0,5) : '<span style="color:#CBD5E0">--</span>'}</td>
+      <td>${r?.work_minutes ? fmtMin(r.work_minutes) : '<span style="color:#CBD5E0">--</span>'}</td>
+      <td style="color:var(--warning)">${r?.overtime_minutes ? fmtMin(r.overtime_minutes) : ''}</td>
+      <td>${r ? `<button class="btn-outline btn-sm" onclick="openAttEdit(${r.id},'${r.date}','${r.clock_in||''}','${r.clock_out||''}')">修正</button>` : ''}</td>
+    </tr>`;
+  }
+
+  document.getElementById('emp-detail-panel').innerHTML = `
+    <!-- プロフィールヘッダー -->
+    <div style="background:linear-gradient(135deg,var(--primary),var(--primary-light));color:white;border-radius:14px;padding:20px 24px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
+      <div>
+        <div style="font-size:1.4rem;font-weight:800">${emp.name}</div>
+        <div style="opacity:.85;font-size:0.85rem;margin-top:4px">${emp.department||'--'} ${emp.position ? '/ '+emp.position : ''} &nbsp;|&nbsp; ID: ${emp.employee_id}</div>
+      </div>
+      <div style="background:rgba(255,255,255,.2);border-radius:10px;padding:10px 18px;text-align:center">
+        <div style="font-size:0.75rem;opacity:.85">有給残</div>
+        <div style="font-size:1.6rem;font-weight:800">${emp.leave_remaining}<span style="font-size:0.9rem">日</span></div>
+      </div>
+    </div>
+
+    <!-- 月選択 -->
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:14px;flex-wrap:wrap">
+      <select id="det-year" style="width:auto" onchange="loadEmpDetail()">${yearOpts}</select>
+      <select id="det-month" style="width:auto" onchange="loadEmpDetail()">${monthOpts}</select>
+      <span style="font-size:0.82rem;color:var(--text-muted);margin-left:4px">← 変更すると自動で再表示</span>
+    </div>
+
+    <!-- サマリーカード -->
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px">
+      <div class="card" style="text-align:center;padding:14px">
+        <div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:4px">出勤日数</div>
+        <div style="font-size:1.8rem;font-weight:800;color:var(--primary)">${data.work_days}<span style="font-size:0.9rem">日</span></div>
+      </div>
+      <div class="card" style="text-align:center;padding:14px">
+        <div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:4px">総勤務時間</div>
+        <div style="font-size:1.8rem;font-weight:800;color:var(--accent)">${fmtMin(data.total_work_minutes)}</div>
+      </div>
+      <div class="card" style="text-align:center;padding:14px">
+        <div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:4px">残業時間</div>
+        <div style="font-size:1.8rem;font-weight:800;color:var(--warning)">${fmtMin(data.total_overtime_minutes)}</div>
+      </div>
+    </div>
+
+    <!-- 勤怠テーブル -->
+    <div class="card">
+      <div class="table-wrap">
+        <table style="font-size:0.85rem">
+          <thead><tr><th>日付</th><th>曜日</th><th>出勤</th><th>退勤</th><th>勤務時間</th><th>残業</th><th>操作</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+
+function openAttEdit(attId, date, clockIn, clockOut) {
+  document.getElementById('att-edit-info').textContent = date;
+  document.getElementById('att-edit-in').value  = clockIn  ? clockIn.slice(0,5)  : '';
+  document.getElementById('att-edit-out').value = clockOut ? clockOut.slice(0,5) : '';
+  document.getElementById('att-edit-modal').classList.remove('hidden');
+  document.getElementById('att-edit-modal').dataset.attId = attId;
+}
+
+async function saveAttEdit() {
+  const attId   = document.getElementById('att-edit-modal').dataset.attId;
+  const clockIn  = document.getElementById('att-edit-in').value;
+  const clockOut = document.getElementById('att-edit-out').value;
+  if (!clockIn) { alert('出勤時刻を入力してください'); return; }
+  try {
+    const res = await api(`/api/admin/attendance/${attId}`, 'PUT', { clock_in: clockIn + ':00', clock_out: clockOut ? clockOut + ':00' : null });
+    if (!res.ok) { const d = await res.json(); alert(d.detail || 'エラー'); return; }
+    closeAttEdit();
+    loadEmpDetail();
+  } catch(e) { alert('通信エラー'); }
+}
+
+function closeAttEdit() {
+  document.getElementById('att-edit-modal').classList.add('hidden');
+}
+
 async function loadAttendance() {
   const year = document.getElementById('att-year').value;
   const month = document.getElementById('att-month').value;
@@ -278,26 +476,6 @@ function openAttEdit(id) {
   document.getElementById('att-edit-modal').classList.remove('hidden');
 }
 
-function closeAttEdit() {
-  document.getElementById('att-edit-modal').classList.add('hidden');
-  editingAttId = null;
-}
-
-async function saveAttEdit() {
-  const clockIn = document.getElementById('att-edit-in').value;
-  const clockOut = document.getElementById('att-edit-out').value;
-  if (!clockIn) { alert('出勤時刻を入力してください'); return; }
-  try {
-    const res = await api(`/api/admin/attendance/${editingAttId}`, 'PUT', {
-      clock_in: clockIn + ':00',
-      clock_out: clockOut ? clockOut + ':00' : null,
-    });
-    const d = await res.json();
-    if (!res.ok) { alert(d.detail || 'エラー'); return; }
-    closeAttEdit();
-    loadAttendance();
-  } catch(e) { alert('通信エラー'); }
-}
 
 function exportCSV() {
   if (!allAttendance.length) { alert('データがありません'); return; }
