@@ -310,6 +310,7 @@ function showTab(name) {
 })();
 
 const myEmployeeId = localStorage.getItem('employee_id');
+let currentShiftData = [];
 
 async function loadShiftTable() {
   const year = document.getElementById('shift-emp-year').value;
@@ -318,8 +319,46 @@ async function loadShiftTable() {
     const res = await api(`/api/shifts?year=${year}&month=${month}`);
     const d = await res.json();
     if (!res.ok) return;
-    renderShiftTable(d.shifts || [], parseInt(year), parseInt(month));
+    currentShiftData = d.shifts || [];
+    renderShiftTable(currentShiftData, parseInt(year), parseInt(month));
   } catch(e) {}
+}
+
+function exportShiftExcel() {
+  if (!currentShiftData.length) { alert('シフトデータがありません。先に「表示」ボタンを押してください。'); return; }
+  const year = parseInt(document.getElementById('shift-emp-year').value);
+  const month = parseInt(document.getElementById('shift-emp-month').value);
+  const daysInMonth = new Date(year, month, 0).getDate();
+  const DOW = ['日','月','火','水','木','金','土'];
+
+  const header = ['氏名', '部署'];
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dt = new Date(year, month - 1, d);
+    header.push(`${d}(${DOW[dt.getDay()]})`);
+  }
+
+  const empMap = {};
+  currentShiftData.forEach(s => {
+    if (!empMap[s.employee_id]) empMap[s.employee_id] = { name: s.name, department: s.department || '', dates: {} };
+    empMap[s.employee_id].dates[s.shift_date] = `${s.start_time.slice(0,5)}~${s.end_time.slice(0,5)}`;
+  });
+
+  const rows = [header];
+  Object.values(empMap).forEach(emp => {
+    const row = [emp.name, emp.department];
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dateStr = `${year}-${String(month).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+      row.push(emp.dates[dateStr] || '');
+    }
+    rows.push(row);
+  });
+
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  // 列幅設定
+  ws['!cols'] = [{ wch: 12 }, { wch: 10 }, ...Array(daysInMonth).fill({ wch: 9 })];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, `${year}年${month}月`);
+  XLSX.writeFile(wb, `シフト表_${year}年${month}月.xlsx`);
 }
 
 function renderShiftTable(shifts, year, month) {

@@ -1409,6 +1409,130 @@ function closeDayAndEdit(empId, empName, shiftDate, startTime, endTime, shiftId)
 
 function escQ(str) { return str.replace(/'/g, "\\'"); }
 
+// ── Excel出力（月別シフト表） ─────────────────────────────────────────────────
+
+function exportAdminShiftExcel() {
+  if (!shiftData || !shiftData.length) { alert('シフトデータがありません。先に「表示」ボタンを押してください。'); return; }
+  const year = parseInt(document.getElementById('shift-year').value);
+  const month = parseInt(document.getElementById('shift-month').value);
+  const daysInMonth = new Date(year, month, 0).getDate();
+  const DOW = ['日','月','火','水','木','金','土'];
+
+  const header = ['氏名', '部署'];
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dt = new Date(year, month - 1, d);
+    header.push(`${d}(${DOW[dt.getDay()]})`);
+  }
+
+  const empMap = {};
+  shiftData.forEach(s => {
+    if (!empMap[s.employee_id]) empMap[s.employee_id] = { name: s.name, department: s.department || '', dates: {} };
+    empMap[s.employee_id].dates[s.shift_date] = `${s.start_time.slice(0,5)}~${s.end_time.slice(0,5)}`;
+  });
+
+  const rows = [header];
+  Object.values(empMap).forEach(emp => {
+    const row = [emp.name, emp.department];
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dateStr = `${year}-${String(month).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+      row.push(emp.dates[dateStr] || '');
+    }
+    rows.push(row);
+  });
+
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols'] = [{ wch: 12 }, { wch: 10 }, ...Array(daysInMonth).fill({ wch: 9 })];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, `${year}年${month}月`);
+  XLSX.writeFile(wb, `シフト表_${year}年${month}月.xlsx`);
+}
+
+// ── Excel出力（年間カレンダー） ───────────────────────────────────────────────
+
+function exportAnnualExcel() {
+  if (!annualCalData) { alert('年間カレンダーデータがありません。先に「表示」ボタンを押してください。'); return; }
+  const fy = parseInt(document.getElementById('annual-year').value);
+  const natHols = annualCalData.national_holidays || {};
+  const deptOff = new Set(annualCalData.dept_off_days || []);
+  const DOW = ['日','月','火','水','木','金','土'];
+
+  const wb = XLSX.utils.book_new();
+
+  // 年間サマリーシート
+  const summaryRows = [
+    [`${fy}年度 年間カレンダー`],
+    [],
+    ['月', '出勤日数', '休日日数'],
+  ];
+  (annualCalData.months || []).forEach(m => {
+    summaryRows.push([`${m.year}年${m.month}月`, m.work_days, m.holiday_days]);
+  });
+  summaryRows.push([]);
+  summaryRows.push(['合計', annualCalData.total_work_days, annualCalData.total_holiday_days]);
+  summaryRows.push([]);
+  summaryRows.push(['祝日一覧']);
+  summaryRows.push(['日付', '名称']);
+  Object.entries(natHols).sort().forEach(([ds, h]) => {
+    summaryRows.push([ds, h.name]);
+  });
+
+  const wsSummary = XLSX.utils.aoa_to_sheet(summaryRows);
+  wsSummary['!cols'] = [{ wch: 20 }, { wch: 10 }, { wch: 10 }];
+  XLSX.utils.book_append_sheet(wb, wsSummary, 'サマリー');
+
+  // 月別シートを作成
+  (annualCalData.months || []).forEach(({ year, month, work_days, holiday_days }) => {
+    const daysInMonth = new Date(year, month, 0).getDate();
+    const rows = [];
+
+    // ヘッダー
+    const dayRow = [''];
+    const dowRow = [''];
+    const typeRow = [''];
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dt = new Date(year, month - 1, d);
+      const dateStr = `${year}-${String(month).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+      dayRow.push(d);
+      dowRow.push(DOW[dt.getDay()]);
+      if (natHols[dateStr]) typeRow.push('祝');
+      else if (deptOff.has(dt.getDay())) typeRow.push('休');
+      else if (dt.getDay() === 0) typeRow.push('日');
+      else if (dt.getDay() === 6) typeRow.push('土');
+      else typeRow.push('');
+    }
+    rows.push(dayRow);
+    rows.push(dowRow);
+    rows.push(typeRow);
+
+    // 従業員シフト行
+    const shifts = annualShiftMap || {};
+    const empMap = {};
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dateStr = `${year}-${String(month).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+      (shifts[dateStr] || []).forEach(s => {
+        if (!empMap[s.employee_id]) empMap[s.employee_id] = { name: s.name, dates: {} };
+        empMap[s.employee_id].dates[dateStr] = `${s.start_time.slice(0,5)}~${s.end_time.slice(0,5)}`;
+      });
+    }
+    Object.values(empMap).forEach(emp => {
+      const row = [emp.name];
+      for (let d = 1; d <= daysInMonth; d++) {
+        const dateStr = `${year}-${String(month).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+        row.push(emp.dates[dateStr] || '');
+      }
+      rows.push(row);
+    });
+
+    rows.push([`出勤日数: ${work_days}日 / 休日日数: ${holiday_days}日`]);
+
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    ws['!cols'] = [{ wch: 12 }, ...Array(daysInMonth).fill({ wch: 8 })];
+    XLSX.utils.book_append_sheet(wb, ws, `${month}月`);
+  });
+
+  XLSX.writeFile(wb, `年間カレンダー_${fy}年度.xlsx`);
+}
+
 // ── 一括シフト登録 ────────────────────────────────────────────────────────────
 
 let bulkSelectedDates = new Set();

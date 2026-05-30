@@ -80,6 +80,7 @@
           <select id="shift-emp-year" style="width:auto"></select>
           <select id="shift-emp-month" style="width:auto"></select>
           <button class="btn-outline btn-sm" onclick="loadShiftTable()">表示</button>
+          <button class="btn-outline btn-sm" onclick="exportShiftExcel()" style="margin-left:auto;border-color:var(--accent);color:var(--accent)">📥 Excel出力</button>
         </div>
         <div style="overflow-x:auto">
           <table id="shift-emp-table" style="min-width:600px;font-size:0.78rem;border-collapse:collapse">
@@ -243,6 +244,7 @@
     </div>
   </div>
 
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <script src="/static/employee.js"></script>
 </body>
 </html>

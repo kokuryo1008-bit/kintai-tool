@@ -186,6 +186,7 @@
             <select id="shift-month" style="width:auto"></select>
             <select id="shift-dept-filter" style="width:auto"><option value="">全部署</option></select>
             <button class="btn-outline btn-sm" onclick="loadShifts()">表示</button>
+            <button class="btn-outline btn-sm" onclick="exportAdminShiftExcel()" style="border-color:var(--accent);color:var(--accent)">📥 Excel出力</button>
             <button class="btn-primary" style="width:auto;padding:8px 18px;font-size:0.85rem;margin-left:auto" onclick="openBulkModal()">📅 一括登録</button>
           </div>
           <div class="card">
@@ -212,6 +213,7 @@
             </div>
             <button class="btn-outline btn-sm" onclick="loadAnnualCalendar()">表示</button>
             <button class="btn-outline btn-sm" onclick="openMandatoryModal()" style="border-color:var(--accent);color:var(--accent)">📋 年5日有給登録</button>
+            <button class="btn-outline btn-sm" onclick="exportAnnualExcel()" style="border-color:#7C3AED;color:#7C3AED">📥 Excel出力</button>
           </div>
 
           <!-- 祝日・休日管理 -->
@@ -238,6 +240,11 @@
                 <span style="display:inline-block;width:12px;height:12px;background:#D1FAE5;border:1px solid #6EE7B7;border-radius:2px;vertical-align:middle;margin-left:8px"></span> 義務有給
               </div>
             </div>
+          </div>
+
+          <!-- 操作ヒント -->
+          <div style="background:#EFF6FF;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:0.82rem;color:var(--primary)">
+            💡 カレンダーの日付をクリックすると、その日のシフトを確認・追加・編集できます。部署を選択すると全従業員のシフト状況が表示されます。
           </div>
 
           <!-- 月別カレンダーグリッド -->
@@ -556,6 +563,7 @@
     </div>
   </div>
 
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <script src="/static/admin.js"></script>
 </body>
 </html>
