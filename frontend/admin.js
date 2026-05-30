@@ -527,20 +527,26 @@ function fmtMinDecimal(min) {
 
 // ── 個人別Excel出力 ───────────────────────────────────────────────────────────
 
-async function exportIndividualExcel() {
-  const year  = parseInt(document.getElementById('att-year').value);
-  const month = parseInt(document.getElementById('att-month').value);
-  const dept  = document.getElementById('att-dept').value;
+async function exportIndividualExcel(btn) {
+  // 年月は全員一覧セレクトを使う（なければ今月）
+  const now    = new Date();
+  const year   = parseInt(document.getElementById('att-year')?.value  || now.getFullYear());
+  const month  = parseInt(document.getElementById('att-month')?.value || (now.getMonth() + 1));
+  const dept   = document.getElementById('att-dept')?.value || '';
 
-  // 従業員一覧を取得
-  let empRes;
+  if (!year || !month) { alert('先に年月を選択してください'); return; }
+
+  const origText = btn?.textContent || '📥 個人別Excel';
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ 作成中...'; }
+
   try {
+    // 従業員一覧を取得
     const url = dept ? `/api/admin/employees?department_id=${dept}` : '/api/admin/employees';
-    empRes = await api(url);
-  } catch(e) { alert('従業員データの取得に失敗しました'); return; }
-  const empData = await empRes.json();
-  const emps = empData.employees || [];
-  if (!emps.length) { alert('従業員が見つかりません'); return; }
+    const empRes = await api(url);
+    if (!empRes.ok) { alert('従業員データの取得に失敗しました'); return; }
+    const empData = await empRes.json();
+    const emps = empData.employees || [];
+    if (!emps.length) { alert('従業員が見つかりません'); return; }
 
   const wb = XLSX.utils.book_new();
   const DOW = ['日','月','火','水','木','金','土'];
@@ -613,14 +619,21 @@ async function exportIndividualExcel() {
       ]);
     }
 
-    // シート名は15文字以内（Excel制限）
-    const sheetName = emp.name.slice(0, 12) + `_${month}月`;
+    // シート名はExcel禁止文字を除去し31文字以内に
+    const safeName = emp.name.replace(/[[\]/:*?\\]/g, '').slice(0, 24);
+    const sheetName = safeName + `_${month}月`;
     const ws = XLSX.utils.aoa_to_sheet(sheetRows);
     ws['!cols'] = [8,5,7,7,9,9,14].map(w => ({ wch: w }));
     XLSX.utils.book_append_sheet(wb, ws, sheetName);
   });
 
-  XLSX.writeFile(wb, `勤怠個人別_${year}年${month}月.xlsx`);
+    XLSX.writeFile(wb, `勤怠個人別_${year}年${month}月.xlsx`);
+  } catch(e) {
+    console.error(e);
+    alert('Excel出力に失敗しました: ' + e.message);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = origText; }
+  }
 }
 
 // ── 有給申請管理 ──
