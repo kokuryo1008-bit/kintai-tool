@@ -61,7 +61,8 @@
         localStorage.setItem('name', data.name);
         localStorage.setItem('employee_id', data.employee_id);
         if (data.department_id) localStorage.setItem('department_id', data.department_id);
-        location.href = data.role === 'employee' ? '/employee' : '/admin';
+        const base = data.role === 'employee' ? '/employee' : '/admin';
+        location.href = base + '?_=' + Date.now();
       } catch (e) {
         clearWakeup();
         setLoading(false);
