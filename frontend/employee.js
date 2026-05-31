@@ -89,15 +89,21 @@ async function loadTodayStatus() {
     document.getElementById('disp-work').textContent = d.work_minutes != null ? fmtMin(d.work_minutes) : '--';
     document.getElementById('disp-ot').textContent = d.overtime_minutes != null ? fmtMin(d.overtime_minutes) : '--';
 
+    const extBtns = document.getElementById('external-buttons');
     if (!d.clock_in) {
       status.textContent = '未出勤';
       btnIn.disabled = false; btnOut.disabled = true;
+      extBtns.style.display = 'none';
     } else if (!d.clock_out) {
       status.textContent = '出勤中 🟢';
       btnIn.disabled = true; btnOut.disabled = false;
+      extBtns.style.display = 'flex';
+      document.getElementById('btn-go-out').disabled = false;
+      await loadExternalStatus();
     } else {
       status.textContent = '退勤済 ✅';
       btnIn.disabled = true; btnOut.disabled = true;
+      extBtns.style.display = 'none';
     }
   } catch(e) {
     document.getElementById('clock-status').textContent = '読み込みエラー';
@@ -115,6 +121,58 @@ function updateTripMode() {
   card.style.background = trip ? 'linear-gradient(135deg,#1E3A5F,#0369A1)' : '';
   document.getElementById('clock-status').textContent = trip ? '✈️ 出張モード（GPS解除）' : '読み込み中...';
   if (trip) loadTodayStatus();
+}
+
+// ── 外出・帰社 ──
+async function loadExternalStatus() {
+  try {
+    const res = await api('/api/attendance/external/today');
+    const d = await res.json();
+    updateExternalUI(d.currently_out, d.records || []);
+  } catch(e) {}
+}
+
+function updateExternalUI(currentlyOut, records) {
+  const btnOut = document.getElementById('btn-go-out');
+  const btnRet = document.getElementById('btn-return');
+  const log    = document.getElementById('external-log');
+
+  if (currentlyOut) {
+    btnOut.style.display = 'none';
+    btnRet.style.display = 'inline-block';
+    btnRet.disabled = false;
+  } else {
+    btnOut.style.display = 'inline-block';
+    btnRet.style.display = 'none';
+  }
+
+  if (records.length) {
+    log.innerHTML = records.map(r =>
+      `🚗 ${r.out_time.slice(0,5)}${r.in_time ? ' → 🏢 ' + r.in_time.slice(0,5) : ' （外出中）'}${r.note ? ' ' + r.note : ''}`
+    ).join('　');
+  }
+}
+
+async function goOut() {
+  const note = prompt('外出理由（任意）', '') ;
+  if (note === null) return; // キャンセル
+  try {
+    const res = await api('/api/attendance/go-out', 'POST', { note: note || null });
+    const d = await res.json();
+    if (!res.ok) { alert(d.detail || 'エラー'); return; }
+    document.getElementById('clock-status').textContent = '外出中 🚗';
+    await loadExternalStatus();
+  } catch(e) { alert('通信エラー'); }
+}
+
+async function returnFromOut() {
+  try {
+    const res = await api('/api/attendance/return', 'POST');
+    const d = await res.json();
+    if (!res.ok) { alert(d.detail || 'エラー'); return; }
+    document.getElementById('clock-status').textContent = '出勤中 🟢';
+    await loadExternalStatus();
+  } catch(e) { alert('通信エラー'); }
 }
 
 // ── 出勤 ──

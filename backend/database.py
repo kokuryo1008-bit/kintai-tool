@@ -394,6 +394,24 @@ def init_db():
         except Exception:
             pass
 
+    # Migration: external_records table（外出・帰社）
+    try:
+        conn.executescript("""
+            CREATE TABLE IF NOT EXISTS external_records (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL REFERENCES users(id),
+                work_date TEXT NOT NULL,
+                out_time TEXT NOT NULL,
+                in_time TEXT,
+                note TEXT,
+                created_at TEXT DEFAULT (datetime('now','localtime'))
+            )
+        """)
+        conn.commit()
+    except Exception:
+        try: conn.rollback()
+        except Exception: pass
+
     # Migration: break_minutes column
     try:
         conn.execute("ALTER TABLE company ADD COLUMN break_minutes INTEGER DEFAULT 60")

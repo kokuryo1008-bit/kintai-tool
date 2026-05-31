@@ -401,6 +401,91 @@ def attendance_history(year: int = None, month: int = None, user=Depends(get_cur
     return {"records": [dict(r) for r in rows]}
 
 
+# ── 外出・帰社 ───────────────────────────────────────────────────────────────
+
+class ExternalNoteReq(BaseModel):
+    note: Optional[str] = None
+
+@app.get("/api/attendance/external/today")
+def external_today(user=Depends(get_current_user)):
+    today = datetime.now(JST).date().isoformat()
+    conn = get_conn()
+    rows = conn.execute(
+        "SELECT id, out_time, in_time, note FROM external_records WHERE user_id=? AND work_date=? ORDER BY out_time",
+        (user["id"], today),
+    ).fetchall()
+    # 現在外出中かどうか
+    currently_out = any(r["out_time"] and not r["in_time"] for r in rows)
+    conn.close()
+    return {"records": [dict(r) for r in rows], "currently_out": currently_out}
+
+@app.post("/api/attendance/go-out")
+def go_out(req: ExternalNoteReq, user=Depends(get_current_user)):
+    now_jst = datetime.now(JST)
+    today   = now_jst.date().isoformat()
+    now_str = now_jst.strftime("%H:%M:%S")
+    conn = get_conn()
+    # 出勤確認
+    att = conn.execute(
+        "SELECT clock_in, clock_out FROM attendance WHERE user_id=? AND work_date=?",
+        (user["id"], today),
+    ).fetchone()
+    if not att or not att["clock_in"]:
+        conn.close(); raise HTTPException(400, "出勤打刻がありません。")
+    if att["clock_out"]:
+        conn.close(); raise HTTPException(400, "すでに退勤済みです。")
+    # 外出中でないか確認
+    open_rec = conn.execute(
+        "SELECT id FROM external_records WHERE user_id=? AND work_date=? AND in_time IS NULL",
+        (user["id"], today),
+    ).fetchone()
+    if open_rec:
+        conn.close(); raise HTTPException(400, "すでに外出中です。")
+    conn.execute(
+        "INSERT INTO external_records (user_id, work_date, out_time, note) VALUES (?,?,?,?)",
+        (user["id"], today, now_str, req.note or None),
+    )
+    conn.commit(); conn.close()
+    return {"ok": True, "out_time": now_str}
+
+@app.post("/api/attendance/return")
+def return_from_out(user=Depends(get_current_user)):
+    now_jst = datetime.now(JST)
+    today   = now_jst.date().isoformat()
+    now_str = now_jst.strftime("%H:%M:%S")
+    conn = get_conn()
+    rec = conn.execute(
+        "SELECT id FROM external_records WHERE user_id=? AND work_date=? AND in_time IS NULL ORDER BY out_time DESC LIMIT 1",
+        (user["id"], today),
+    ).fetchone()
+    if not rec:
+        conn.close(); raise HTTPException(400, "外出記録がありません。")
+    conn.execute("UPDATE external_records SET in_time=? WHERE id=?", (now_str, rec["id"]))
+    conn.commit(); conn.close()
+    return {"ok": True, "in_time": now_str}
+
+@app.get("/api/admin/external/today")
+def admin_external_today(user=Depends(get_current_user)):
+    require_admin(user)
+    today = datetime.now(JST).date().isoformat()
+    dept  = _dept_id(user)
+    conn  = get_conn()
+    q = """
+        SELECT u.name, d.name as department,
+               e.out_time, e.in_time, e.note
+        FROM external_records e
+        JOIN users u ON e.user_id=u.id
+        LEFT JOIN departments d ON u.department_id=d.id
+        WHERE e.work_date=? AND u.is_active=1
+    """
+    params = [today]
+    if dept:
+        q += " AND u.department_id=?"; params.append(dept)
+    q += " ORDER BY e.out_time DESC"
+    rows = conn.execute(q, params).fetchall()
+    conn.close()
+    return {"records": [dict(r) for r in rows]}
+
 # ── 勤怠修正（管理者） ───────────────────────────────────────────────────────
 
 class AttEditReq(BaseModel):

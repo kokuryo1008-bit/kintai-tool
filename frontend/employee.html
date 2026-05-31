@@ -35,6 +35,13 @@
         <button class="btn-clock btn-clock-in" id="btn-in" onclick="clockIn()" disabled>出勤</button>
         <button class="btn-clock btn-clock-out" id="btn-out" onclick="clockOut()" disabled>退勤</button>
       </div>
+      <!-- 外出・帰社ボタン -->
+      <div id="external-buttons" style="display:none;margin-top:12px;display:flex;gap:8px;justify-content:center">
+        <button id="btn-go-out" onclick="goOut()" style="padding:10px 20px;border-radius:8px;border:2px solid #F59E0B;background:white;color:#D97706;font-weight:700;cursor:pointer;font-size:0.88rem" disabled>🚗 外出</button>
+        <button id="btn-return" onclick="returnFromOut()" style="padding:10px 20px;border-radius:8px;border:2px solid #10B981;background:white;color:#059669;font-weight:700;cursor:pointer;font-size:0.88rem;display:none">🏢 帰社</button>
+      </div>
+      <!-- 外出履歴（本日） -->
+      <div id="external-log" style="margin-top:10px;font-size:0.78rem;color:rgba(255,255,255,.8)"></div>
     </div>
 
     <!-- GPS警告 -->
@@ -279,6 +286,6 @@
   </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-  <script src="/static/employee.js?v=6"></script>
+  <script src="/static/employee.js?v=7"></script>
 </body>
 </html>

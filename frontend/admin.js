@@ -89,25 +89,44 @@ async function loadDashboard() {
       <div class="stat-card"><div class="stat-label">出張申請中</div><div class="stat-value" style="color:var(--primary-light)">${stats.pending_trip || 0}<span class="stat-unit"> 件</span></div></div>
     `;
 
+    // 外出状況を取得
+    let externalMap = {};
+    try {
+      const extRes = await api('/api/admin/external/today');
+      const extD = await extRes.json();
+      (extD.records || []).forEach(e => {
+        if (!externalMap[e.name]) externalMap[e.name] = [];
+        externalMap[e.name].push(e);
+      });
+    } catch(e) {}
+
     const tbody = document.getElementById('today-body');
     tbody.innerHTML = '';
     (today.records || []).forEach(r => {
       const tr = document.createElement('tr');
+      const extRecs = externalMap[r.name] || [];
+      const currentlyOut = extRecs.some(e => !e.in_time);
       const statusHtml = r.clock_out
         ? '<span class="badge badge-gray">退勤済</span>'
         : r.clock_in
-          ? '<span class="badge badge-green">出勤中</span>'
+          ? currentlyOut
+            ? '<span style="background:#FEF3C7;color:#D97706;padding:2px 8px;border-radius:12px;font-size:0.78rem;font-weight:700">🚗 外出中</span>'
+            : '<span class="badge badge-green">出勤中</span>'
           : '<span class="badge badge-red">未出勤</span>';
+      const extLog = extRecs.length
+        ? extRecs.map(e => `${e.out_time.slice(0,5)}${e.in_time ? '→'+e.in_time.slice(0,5) : '→?'}`).join(' ')
+        : '--';
       tr.innerHTML = `
         <td>${r.name}</td>
         <td>${r.department || '--'}</td>
         <td>${r.clock_in ? r.clock_in.slice(0,5) : '--'}</td>
         <td>${r.clock_out ? r.clock_out.slice(0,5) : '--'}</td>
         <td>${statusHtml}</td>
+        <td style="font-size:0.78rem;color:var(--text-muted)">${extLog}</td>
       `;
       tbody.appendChild(tr);
     });
-    if (!today.records?.length) tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-muted)">データなし</td></tr>';
+    if (!today.records?.length) tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-muted)">データなし</td></tr>';
   } catch(e) {}
 }
 
