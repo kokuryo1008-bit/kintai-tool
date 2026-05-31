@@ -1704,6 +1704,6 @@ def admin_reject_overtime(req_id: int, user=Depends(get_current_user)):
     return {"ok": True}
 
 
-@app.get("/api/health")
+@app.api_route("/api/health", methods=["GET", "HEAD"])
 def health():
     return {"status": "ok"}
