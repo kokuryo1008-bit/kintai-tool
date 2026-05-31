@@ -30,6 +30,7 @@
       <div class="sidebar-item" onclick="showSection('reports')" id="nav-reports">📝 日報閲覧</div>
       <div class="sidebar-item" onclick="showSection('sales')" id="nav-sales">💼 営業報告</div>
       <div class="sidebar-item" onclick="showSection('overtime')" id="nav-overtime">⏰ 残業申請</div>
+      <div class="sidebar-item" onclick="showSection('corrections')" id="nav-corrections">✏️ 打刻修正申請 <span id="correction-badge" style="display:none;background:var(--danger);color:white;border-radius:20px;padding:1px 7px;font-size:0.72rem;margin-left:4px">0</span></div>
       <div class="sidebar-item" onclick="showSection('settings')" id="nav-settings">⚙️ 設定</div>
     </div>
 
@@ -55,6 +56,8 @@
       <!-- ダッシュボード -->
       <div id="section-dashboard">
         <h2 style="font-size:1.2rem;font-weight:800;color:var(--primary);margin-bottom:20px">ダッシュボード</h2>
+        <!-- 打刻漏れアラート -->
+        <div id="punch-alerts-area" style="margin-bottom:16px"></div>
         <div class="stats-grid" id="stats-grid"></div>
         <div class="card">
           <div class="card-title">📋 本日の出勤状況</div>
@@ -412,6 +415,18 @@
         </div>
       </div>
 
+      <!-- 打刻修正申請 -->
+      <div id="section-corrections" class="hidden">
+        <h2 style="font-size:1.2rem;font-weight:800;color:var(--primary);margin-bottom:20px">✏️ 打刻修正申請</h2>
+        <div class="card" style="margin-bottom:12px">
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+            <button class="btn-outline btn-sm" onclick="loadCorrections('pending')" id="cf-pending" style="border-color:var(--warning);color:var(--warning)">申請中</button>
+            <button class="btn-outline btn-sm" onclick="loadCorrections('all')" id="cf-all">全て</button>
+          </div>
+        </div>
+        <div id="corrections-list"></div>
+      </div>
+
       <!-- 設定 -->
       <div id="section-settings" class="hidden">
         <h2 style="font-size:1.2rem;font-weight:800;color:var(--primary);margin-bottom:20px">システム設定</h2>
@@ -608,6 +623,6 @@
   </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-  <script src="/static/admin.js?v=4"></script>
+  <script src="/static/admin.js?v=5"></script>
 </body>
 </html>

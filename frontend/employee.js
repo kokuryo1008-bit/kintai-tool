@@ -267,7 +267,7 @@ async function submitTrip() {
 }
 
 // ── タブ ──
-const TAB_NAMES = ['history','shift','leave','report','sales','overtime'];
+const TAB_NAMES = ['history','shift','leave','report','sales','overtime','correction'];
 
 function showTab(name) {
   TAB_NAMES.forEach(t => {
@@ -283,6 +283,7 @@ function showTab(name) {
   if (name === 'report') loadReport();
   if (name === 'sales') loadSales();
   if (name === 'overtime') loadOvertime();
+  if (name === 'correction') loadCorrectionHistory();
 }
 
 // ── シフト表 ──
@@ -915,6 +916,57 @@ function renderOvertime() {
   `).join('');
 }
 
+
+// ── 打刻修正申請 ──
+async function submitCorrection() {
+  const date   = document.getElementById('corr-date').value;
+  const inTime = document.getElementById('corr-in').value;
+  const outTime= document.getElementById('corr-out').value;
+  const reason = document.getElementById('corr-reason').value;
+  if (!date) { alert('対象日を選択してください'); return; }
+  if (!inTime && !outTime) { alert('修正後の時刻を少なくとも一方入力してください'); return; }
+  try {
+    const res = await api('/api/corrections/request', 'POST', {
+      work_date: date,
+      requested_clock_in:  inTime  ? inTime  + ':00' : null,
+      requested_clock_out: outTime ? outTime + ':00' : null,
+      reason: reason || null,
+    });
+    const d = await res.json();
+    if (!res.ok) { alert(d.detail || 'エラー'); return; }
+    alert('申請しました。管理者が確認次第、承認されます。');
+    document.getElementById('corr-date').value = '';
+    document.getElementById('corr-in').value = '';
+    document.getElementById('corr-out').value = '';
+    document.getElementById('corr-reason').value = '';
+    loadCorrectionHistory();
+  } catch(e) { alert('通信エラー'); }
+}
+
+async function loadCorrectionHistory() {
+  try {
+    const res = await api('/api/corrections/mine');
+    const d = await res.json();
+    const el = document.getElementById('correction-history');
+    const reqs = d.requests || [];
+    if (!reqs.length) { el.innerHTML = '<div style="color:var(--text-muted);font-size:0.85rem">申請履歴はありません</div>'; return; }
+    const sc = { pending:'#F59E0B', approved:'#10B981', rejected:'#EF4444' };
+    const sl = { pending:'申請中', approved:'承認済', rejected:'却下' };
+    el.innerHTML = reqs.map(r => `
+      <div style="background:#F8FAFC;border-radius:10px;padding:12px 14px;margin-bottom:8px;font-size:0.85rem">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <strong>${r.work_date}</strong>
+          <span style="font-size:0.75rem;font-weight:700;padding:2px 10px;border-radius:20px;background:${sc[r.status]}22;color:${sc[r.status]}">${sl[r.status]||r.status}</span>
+        </div>
+        <div style="color:var(--text-muted)">
+          出勤: ${r.requested_clock_in ? r.requested_clock_in.slice(0,5) : '--'} ／
+          退勤: ${r.requested_clock_out ? r.requested_clock_out.slice(0,5) : '--'}
+        </div>
+        ${r.reason ? `<div style="color:var(--text-muted);margin-top:3px">理由: ${r.reason}</div>` : ''}
+      </div>
+    `).join('');
+  } catch(e) {}
+}
 
 // ── ログアウト ──
 function logout() {

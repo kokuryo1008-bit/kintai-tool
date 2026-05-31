@@ -75,6 +75,7 @@
         <button class="tab-btn" onclick="showTab('report')" style="white-space:nowrap">日報</button>
         <button class="tab-btn" onclick="showTab('sales')" style="white-space:nowrap">営業報告</button>
         <button class="tab-btn" onclick="showTab('overtime')" style="white-space:nowrap">残業申請</button>
+        <button class="tab-btn" onclick="showTab('correction')" style="white-space:nowrap">打刻修正申請</button>
       </div>
 
       <!-- シフト表 -->
@@ -176,6 +177,27 @@
         <div id="overtime-list"></div>
       </div>
 
+      <!-- 打刻修正申請 -->
+      <div id="tab-correction" style="display:none">
+        <div style="background:#FEF3C7;border-radius:8px;padding:12px 14px;margin-bottom:16px;font-size:0.85rem;color:#92400E">
+          打刻の修正が必要な場合はこちらから申請してください。管理者が確認・承認します。
+        </div>
+        <div class="card" style="margin-bottom:16px">
+          <div class="card-title">📝 新規申請</div>
+          <div class="form-group"><label>対象日</label><input type="date" id="corr-date"></div>
+          <div style="display:flex;gap:12px;margin-bottom:12px">
+            <div class="form-group" style="margin:0;flex:1"><label>修正後 出勤時刻</label><input type="time" id="corr-in"></div>
+            <div class="form-group" style="margin:0;flex:1"><label>修正後 退勤時刻</label><input type="time" id="corr-out"></div>
+          </div>
+          <div class="form-group"><label>理由</label><input type="text" id="corr-reason" placeholder="例：打刻忘れのため"></div>
+          <button class="btn-primary" onclick="submitCorrection()">申請する</button>
+        </div>
+        <div class="card">
+          <div class="card-title">申請履歴</div>
+          <div id="correction-history"></div>
+        </div>
+      </div>
+
       <!-- 有給申請 -->
       <div id="tab-leave" class="hidden">
         <div style="background:#D1FAE5;border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:0.88rem">
@@ -257,6 +279,6 @@
   </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-  <script src="/static/employee.js?v=5"></script>
+  <script src="/static/employee.js?v=6"></script>
 </body>
 </html>

@@ -411,6 +411,27 @@ def init_db():
             try: conn.rollback()
             except Exception: pass
 
+    # Migration: punch_correction_requests table
+    try:
+        conn.executescript("""
+            CREATE TABLE IF NOT EXISTS punch_correction_requests (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL REFERENCES users(id),
+                work_date TEXT NOT NULL,
+                requested_clock_in TEXT,
+                requested_clock_out TEXT,
+                reason TEXT,
+                status TEXT DEFAULT 'pending',
+                approved_by INTEGER REFERENCES users(id),
+                approved_at TEXT,
+                created_at TEXT DEFAULT (datetime('now','localtime'))
+            )
+        """)
+        conn.commit()
+    except Exception:
+        try: conn.rollback()
+        except Exception: pass
+
     if not conn.execute("SELECT 1 FROM company WHERE id=1").fetchone():
         conn.execute("INSERT INTO company (id) VALUES (1)")
         conn.commit()

@@ -48,9 +48,9 @@ function resetPin() {
 
 // ── セクション切り替え ──
 function showSection(sec) {
-  ['dashboard','employees','attendance','leave','trip','shifts','reports','sales','overtime','settings'].forEach(s => {
+  ['dashboard','employees','attendance','leave','trip','shifts','reports','sales','overtime','corrections','settings'].forEach(s => {
     document.getElementById('section-' + s).classList.toggle('hidden', s !== sec);
-    document.getElementById('nav-' + s).classList.toggle('active', s === sec);
+    document.getElementById('nav-' + s)?.classList.toggle('active', s === sec);
   });
   if (sec === 'dashboard') loadDashboard();
   if (sec === 'employees') loadEmployees();
@@ -61,16 +61,23 @@ function showSection(sec) {
   if (sec === 'reports') initAdminReports();
   if (sec === 'sales') initAdminSales();
   if (sec === 'overtime') initAdminOvertime();
+  if (sec === 'corrections') loadCorrections('pending');
   if (sec === 'settings') loadSettings();
 }
 
 // ── ダッシュボード ──
 async function loadDashboard() {
   try {
-    const [statsRes, todayRes] = await Promise.all([
+    const [statsRes, todayRes, alertsRes] = await Promise.all([
       api('/api/admin/stats'),
-      api('/api/admin/today')
+      api('/api/admin/today'),
+      api('/api/admin/punch-alerts'),
     ]);
+    // 打刻漏れアラート
+    const alerts = await alertsRes.json();
+    renderPunchAlerts(alerts);
+    // バッジ更新
+    loadCorrectionBadge();
     const stats = await statsRes.json();
     const today = await todayRes.json();
 
@@ -102,6 +109,110 @@ async function loadDashboard() {
     });
     if (!today.records?.length) tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-muted)">データなし</td></tr>';
   } catch(e) {}
+}
+
+// ── 打刻漏れアラート ─────────────────────────────────────────────────────────
+
+function renderPunchAlerts(alerts) {
+  const area = document.getElementById('punch-alerts-area');
+  const mi = alerts.missing_clock_in || [];
+  const mo = alerts.missing_clock_out || [];
+  if (!mi.length && !mo.length) { area.innerHTML = ''; return; }
+  let html = '';
+  if (mi.length) {
+    html += `<div style="background:#FEF2F2;border:1px solid #FCA5A5;border-radius:12px;padding:14px 18px;margin-bottom:10px">
+      <div style="font-weight:700;color:#DC2626;margin-bottom:8px">🔴 出勤打刻漏れ（${mi.length}名）</div>
+      ${mi.map(r => `<div style="font-size:0.85rem;padding:4px 0;border-bottom:1px solid #FEE2E2"><strong>${r.name}</strong> <span style="color:#6B7280">${r.department}</span> — 定時 ${r.expected} を30分以上過ぎています</div>`).join('')}
+    </div>`;
+  }
+  if (mo.length) {
+    html += `<div style="background:#FFFBEB;border:1px solid #FCD34D;border-radius:12px;padding:14px 18px">
+      <div style="font-weight:700;color:#D97706;margin-bottom:8px">🟡 退勤打刻漏れ（${mo.length}名）</div>
+      ${mo.map(r => `<div style="font-size:0.85rem;padding:4px 0;border-bottom:1px solid #FEF3C7"><strong>${r.name}</strong> <span style="color:#6B7280">${r.department}</span> — 出勤 ${r.clock_in} から10時間以上経過</div>`).join('')}
+    </div>`;
+  }
+  area.innerHTML = html;
+}
+
+// ── 打刻修正申請（管理者） ────────────────────────────────────────────────────
+
+async function loadCorrectionBadge() {
+  try {
+    const res = await api('/api/admin/corrections?status=pending');
+    const d = await res.json();
+    const cnt = (d.requests || []).length;
+    const badge = document.getElementById('correction-badge');
+    if (badge) { badge.textContent = cnt; badge.style.display = cnt ? 'inline' : 'none'; }
+  } catch(e) {}
+}
+
+async function loadCorrections(filter = 'pending') {
+  document.getElementById('cf-pending').style.fontWeight = filter === 'pending' ? '800' : '400';
+  document.getElementById('cf-all').style.fontWeight = filter === 'all' ? '800' : '400';
+  try {
+    const url = filter === 'all' ? '/api/admin/corrections' : '/api/admin/corrections?status=pending';
+    const res = await api(url);
+    const d = await res.json();
+    renderCorrections(d.requests || []);
+  } catch(e) {}
+}
+
+function renderCorrections(reqs) {
+  const el = document.getElementById('corrections-list');
+  if (!reqs.length) {
+    el.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:30px">申請はありません</div>';
+    return;
+  }
+  const statusColor = { pending:'#F59E0B', approved:'#10B981', rejected:'#EF4444' };
+  const statusLabel = { pending:'申請中', approved:'承認済', rejected:'却下' };
+  el.innerHTML = reqs.map(r => `
+    <div style="background:white;border-radius:12px;border:1px solid var(--border);padding:16px;margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;margin-bottom:10px">
+        <div>
+          <span style="font-weight:800;font-size:1rem">${r.name}</span>
+          <span style="font-size:0.8rem;color:var(--text-muted);margin-left:8px">${r.department || '--'}</span>
+          <div style="font-size:0.85rem;color:var(--text-muted);margin-top:2px">対象日: <strong>${r.work_date}</strong></div>
+        </div>
+        <span style="font-size:0.78rem;font-weight:700;padding:3px 12px;border-radius:20px;background:${statusColor[r.status]}22;color:${statusColor[r.status]}">${statusLabel[r.status]||r.status}</span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;font-size:0.83rem">
+        <div style="background:#F8FAFC;border-radius:8px;padding:8px 12px">
+          <div style="color:var(--text-muted);font-size:0.75rem">現在の打刻</div>
+          <div>出勤: ${r.current_in ? r.current_in.slice(0,5) : '--'} ／ 退勤: ${r.current_out ? r.current_out.slice(0,5) : '--'}</div>
+        </div>
+        <div style="background:#EFF6FF;border-radius:8px;padding:8px 12px">
+          <div style="color:var(--primary);font-size:0.75rem">修正後</div>
+          <div>出勤: ${r.requested_clock_in ? r.requested_clock_in.slice(0,5) : '--'} ／ 退勤: ${r.requested_clock_out ? r.requested_clock_out.slice(0,5) : '--'}</div>
+        </div>
+      </div>
+      ${r.reason ? `<div style="font-size:0.83rem;color:var(--text-muted);margin-bottom:10px">理由: ${r.reason}</div>` : ''}
+      ${r.status === 'pending' ? `
+        <div style="display:flex;gap:8px">
+          <button class="btn-primary" style="width:auto;padding:8px 20px" onclick="approveCorrection(${r.id})">承認</button>
+          <button class="btn-outline" style="color:var(--danger);border-color:var(--danger);width:auto;padding:8px 20px" onclick="rejectCorrection(${r.id})">却下</button>
+        </div>` : ''}
+    </div>
+  `).join('');
+}
+
+async function approveCorrection(id) {
+  if (!confirm('この修正申請を承認しますか？打刻が更新されます。')) return;
+  try {
+    const res = await api(`/api/admin/corrections/${id}/approve`, 'POST');
+    if (!res.ok) { const d = await res.json(); alert(d.detail || 'エラー'); return; }
+    loadCorrections('pending');
+    loadCorrectionBadge();
+  } catch(e) { alert('通信エラー'); }
+}
+
+async function rejectCorrection(id) {
+  if (!confirm('この修正申請を却下しますか？')) return;
+  try {
+    const res = await api(`/api/admin/corrections/${id}/reject`, 'POST');
+    if (!res.ok) { const d = await res.json(); alert(d.detail || 'エラー'); return; }
+    loadCorrections('pending');
+    loadCorrectionBadge();
+  } catch(e) { alert('通信エラー'); }
 }
 
 // ── 従業員管理 ──

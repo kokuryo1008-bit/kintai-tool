@@ -1704,6 +1704,163 @@ def admin_reject_overtime(req_id: int, user=Depends(get_current_user)):
     return {"ok": True}
 
 
+# ── 打刻漏れアラート（管理者） ───────────────────────────────────────────────
+
+@app.get("/api/admin/punch-alerts")
+def punch_alerts(user=Depends(get_current_user)):
+    require_admin(user)
+    today = datetime.now(JST).date().isoformat()
+    now_jst = datetime.now(JST)
+    dept = _dept_id(user)
+    conn = get_conn()
+
+    company = conn.execute("SELECT work_hours, work_start FROM company WHERE id=1").fetchone()
+    default_start = (company["work_start"] if company and company["work_start"] else "09:00")
+
+    q = """
+        SELECT u.id, u.name, u.employee_id, d.name as department,
+               a.clock_in, a.clock_out,
+               s.start_time as shift_start, s.end_time as shift_end,
+               u.work_start as user_start, u.work_end as user_end
+        FROM users u
+        LEFT JOIN departments d ON u.department_id=d.id
+        LEFT JOIN attendance a ON a.user_id=u.id AND a.work_date=?
+        LEFT JOIN shifts s ON s.user_id=u.id AND s.shift_date=?
+        WHERE u.is_active=1 AND u.role NOT IN ('admin')
+    """
+    params = [today, today]
+    if dept:
+        q += " AND u.department_id=?"
+        params.append(dept)
+    rows = conn.execute(q, params).fetchall()
+    conn.close()
+
+    missing_in, missing_out = [], []
+    for r in rows:
+        start_str = (r["shift_start"] or r["user_start"] or default_start)[:5]
+        try:
+            start_dt = datetime.strptime(f"{today} {start_str}", "%Y-%m-%d %H:%M").replace(tzinfo=JST)
+        except Exception:
+            continue
+        if not r["clock_in"] and now_jst > start_dt + timedelta(minutes=30):
+            missing_in.append({"name": r["name"], "department": r["department"] or "--", "expected": start_str})
+        if r["clock_in"] and not r["clock_out"]:
+            try:
+                ci = datetime.strptime(f"{today} {r['clock_in']}", "%Y-%m-%d %H:%M:%S").replace(tzinfo=JST)
+                if now_jst > ci + timedelta(hours=10):
+                    missing_out.append({"name": r["name"], "department": r["department"] or "--", "clock_in": r["clock_in"][:5]})
+            except Exception:
+                pass
+    return {"missing_clock_in": missing_in, "missing_clock_out": missing_out}
+
+
+# ── 打刻修正申請（従業員） ────────────────────────────────────────────────────
+
+class CorrectionReq(BaseModel):
+    work_date: str
+    requested_clock_in: Optional[str] = None
+    requested_clock_out: Optional[str] = None
+    reason: Optional[str] = None
+
+@app.get("/api/corrections/mine")
+def my_corrections(user=Depends(get_current_user)):
+    conn = get_conn()
+    rows = conn.execute(
+        "SELECT id, work_date, requested_clock_in, requested_clock_out, reason, status, created_at FROM punch_correction_requests WHERE user_id=? ORDER BY created_at DESC",
+        (user["id"],)
+    ).fetchall()
+    conn.close()
+    return {"requests": [dict(r) for r in rows]}
+
+@app.post("/api/corrections/request")
+def request_correction(req: CorrectionReq, user=Depends(get_current_user)):
+    if not req.work_date:
+        raise HTTPException(status_code=400, detail="対象日を入力してください。")
+    if not req.requested_clock_in and not req.requested_clock_out:
+        raise HTTPException(status_code=400, detail="修正後の時刻を入力してください。")
+    conn = get_conn()
+    conn.execute(
+        "INSERT INTO punch_correction_requests (user_id, work_date, requested_clock_in, requested_clock_out, reason) VALUES (?,?,?,?,?)",
+        (user["id"], req.work_date, req.requested_clock_in or None, req.requested_clock_out or None, req.reason or None)
+    )
+    conn.commit()
+    conn.close()
+    return {"ok": True}
+
+
+# ── 打刻修正申請（管理者） ────────────────────────────────────────────────────
+
+@app.get("/api/admin/corrections")
+def admin_corrections(status: str = "", user=Depends(get_current_user)):
+    require_admin(user)
+    dept = _dept_id(user)
+    conn = get_conn()
+    conds, params = [], []
+    if status:
+        conds.append("cr.status=?"); params.append(status)
+    if dept:
+        conds.append("u.department_id=?"); params.append(dept)
+    where = ("WHERE " + " AND ".join(conds)) if conds else ""
+    rows = conn.execute(f"""
+        SELECT cr.id, cr.work_date, cr.requested_clock_in, cr.requested_clock_out,
+               cr.reason, cr.status, cr.created_at,
+               u.name, u.employee_id, d.name as department,
+               a.clock_in as current_in, a.clock_out as current_out
+        FROM punch_correction_requests cr
+        JOIN users u ON cr.user_id=u.id
+        LEFT JOIN departments d ON u.department_id=d.id
+        LEFT JOIN attendance a ON a.user_id=cr.user_id AND a.work_date=cr.work_date
+        {where} ORDER BY cr.created_at DESC
+    """, params).fetchall()
+    conn.close()
+    return {"requests": [dict(r) for r in rows]}
+
+@app.post("/api/admin/corrections/{req_id}/approve")
+def approve_correction(req_id: int, user=Depends(get_current_user)):
+    require_admin(user)
+    conn = get_conn()
+    req = conn.execute(
+        "SELECT * FROM punch_correction_requests WHERE id=? AND status='pending'", (req_id,)
+    ).fetchone()
+    if not req:
+        conn.close()
+        raise HTTPException(status_code=404, detail="申請が見つかりません。")
+    # 勤怠レコードを修正
+    existing = conn.execute(
+        "SELECT id FROM attendance WHERE user_id=? AND work_date=?", (req["user_id"], req["work_date"])
+    ).fetchone()
+    if existing:
+        conn.execute(
+            "UPDATE attendance SET clock_in=COALESCE(?,clock_in), clock_out=COALESCE(?,clock_out) WHERE user_id=? AND work_date=?",
+            (req["requested_clock_in"], req["requested_clock_out"], req["user_id"], req["work_date"])
+        )
+    else:
+        conn.execute(
+            "INSERT INTO attendance (user_id, work_date, clock_in, clock_out) VALUES (?,?,?,?)",
+            (req["user_id"], req["work_date"], req["requested_clock_in"], req["requested_clock_out"])
+        )
+    _calc_hours(conn, req["user_id"], req["work_date"])
+    conn.execute(
+        "UPDATE punch_correction_requests SET status='approved', approved_by=?, approved_at=datetime('now','localtime') WHERE id=?",
+        (user["id"], req_id)
+    )
+    conn.commit()
+    conn.close()
+    return {"ok": True}
+
+@app.post("/api/admin/corrections/{req_id}/reject")
+def reject_correction(req_id: int, user=Depends(get_current_user)):
+    require_admin(user)
+    conn = get_conn()
+    conn.execute(
+        "UPDATE punch_correction_requests SET status='rejected', approved_by=?, approved_at=datetime('now','localtime') WHERE id=?",
+        (user["id"], req_id)
+    )
+    conn.commit()
+    conn.close()
+    return {"ok": True}
+
+
 @app.api_route("/api/health", methods=["GET", "HEAD"])
 def health():
     return {"status": "ok"}
