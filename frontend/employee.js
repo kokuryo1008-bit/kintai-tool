@@ -245,32 +245,9 @@ async function loadHistory() {
     sumOtEl.textContent = fmtMin(totalOt) + otWarn;
     sumOtEl.style.color = otColor;
 
-    // 月末確認ボタン
-    const today2 = new Date();
-    const isPastMonth = parseInt(year) < today2.getFullYear() || (parseInt(year) === today2.getFullYear() && parseInt(month) < today2.getMonth() + 1);
-    const isLastWeek  = parseInt(year) === today2.getFullYear() && parseInt(month) === today2.getMonth() + 1 && today2.getDate() >= 25;
-    const confirmedAt = d.confirmed_at;
-    let confirmHtml = '';
-    if (isPastMonth || isLastWeek) {
-      if (confirmedAt) {
-        confirmHtml = `<div style="margin-top:10px;background:#D1FAE5;border-radius:8px;padding:8px 14px;font-size:0.83rem;color:#065F46">✅ ${confirmedAt.slice(0,10)} に確認済み</div>`;
-      } else {
-        confirmHtml = `<div style="margin-top:10px"><button class="btn-outline btn-sm" onclick="confirmAttendance(${year},${month})" style="border-color:var(--accent);color:var(--accent)">✅ 今月の勤怠を確認・承認する</button></div>`;
-      }
-    }
-    document.getElementById('hist-confirm').innerHTML = confirmHtml;
   } catch(e) {}
 }
 loadHistory();
-
-async function confirmAttendance(year, month) {
-  if (!confirm(`${year}年${month}月の勤怠内容を確認・承認しますか？`)) return;
-  try {
-    const res = await api(`/api/attendance/confirm?year=${year}&month=${month}`, 'POST');
-    if (!res.ok) { alert('エラーが発生しました'); return; }
-    loadHistory();
-  } catch(e) { alert('通信エラー'); }
-}
 
 // ── 有給申請 ──
 async function loadLeaveInfo() {

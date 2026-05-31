@@ -466,53 +466,9 @@ def attendance_history(year: int = None, month: int = None, user=Depends(get_cur
         d["is_early"] = is_early
         d["expected_start"] = exp_start
         records.append(d)
-    # 月末確認状態
-    confirmed = conn.execute(
-        "SELECT confirmed_at FROM attendance_confirmations WHERE user_id=? AND year=? AND month=?",
-        (user["id"], y, m)
-    ).fetchone()
     conn.close()
     total_ot = sum(r["overtime_minutes"] or 0 for r in records)
-    return {"records": records, "total_overtime_minutes": total_ot, "confirmed_at": confirmed["confirmed_at"] if confirmed else None}
-
-
-@app.post("/api/attendance/confirm")
-def confirm_attendance(year: int, month: int, user=Depends(get_current_user)):
-    conn = get_conn()
-    try:
-        conn.execute(
-            "INSERT OR REPLACE INTO attendance_confirmations (user_id, year, month) VALUES (?,?,?)",
-            (user["id"], year, month)
-        )
-        conn.commit()
-    except Exception: pass
-    conn.close()
-    return {"ok": True}
-
-
-@app.get("/api/admin/confirmations")
-def admin_confirmations(year: int = None, month: int = None, user=Depends(get_current_user)):
-    require_admin(user)
-    today = datetime.now(JST).date()
-    y = year or today.year
-    m = month or today.month
-    dept = _dept_id(user)
-    conn = get_conn()
-    q = """
-        SELECT u.name, u.employee_id, d.name as department,
-               ac.confirmed_at
-        FROM users u
-        LEFT JOIN departments d ON u.department_id=d.id
-        LEFT JOIN attendance_confirmations ac ON ac.user_id=u.id AND ac.year=? AND ac.month=?
-        WHERE u.is_active=1 AND u.role NOT IN ('admin')
-    """
-    params = [y, m]
-    if dept:
-        q += " AND u.department_id=?"; params.append(dept)
-    q += " ORDER BY d.name, u.employee_id"
-    rows = conn.execute(q, params).fetchall()
-    conn.close()
-    return {"year": y, "month": m, "employees": [dict(r) for r in rows]}
+    return {"records": records, "total_overtime_minutes": total_ot}
 
 
 # ── 外出・帰社 ───────────────────────────────────────────────────────────────
@@ -903,10 +859,6 @@ def emp_monthly_summary(emp_id: str, year: int = None, month: int = None, user=D
     work_days      = sum(1 for r in records if r["clock_in"])
     total_work     = sum(r["work_minutes"] or 0 for r in records)
     total_overtime = sum(r["overtime_minutes"] or 0 for r in records)
-    confirmed = conn.execute(
-        "SELECT confirmed_at FROM attendance_confirmations WHERE user_id=? AND year=? AND month=?",
-        (emp["id"], y, m)
-    ).fetchone()
     conn.close()
     return {
         "employee": dict(emp),
@@ -915,7 +867,6 @@ def emp_monthly_summary(emp_id: str, year: int = None, month: int = None, user=D
         "total_work_minutes": total_work,
         "total_overtime_minutes": total_overtime,
         "records": records,
-        "confirmed_at": confirmed["confirmed_at"] if confirmed else None,
     }
 
 @app.get("/api/admin/attendance")
