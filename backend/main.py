@@ -105,7 +105,23 @@ def _calc_hours(conn, user_id: int, work_date: str):
     # 会社の休憩時間を取得して差し引く
     company = conn.execute("SELECT work_hours, break_minutes FROM company WHERE id=1").fetchone()
     break_min = int(company["break_minutes"] if company and company["break_minutes"] is not None else 60)
-    total = max(0, total_raw - break_min)  # 実働時間
+
+    # 私用外出時間を差し引く（完了分のみ）
+    ext_rows = conn.execute(
+        "SELECT out_time, in_time FROM external_records WHERE user_id=? AND work_date=?",
+        (user_id, work_date),
+    ).fetchall()
+    ext_min = 0
+    for ext in ext_rows:
+        if ext["out_time"] and ext["in_time"]:
+            try:
+                out_dt = datetime.strptime(f"{work_date} {ext['out_time']}", "%Y-%m-%d %H:%M:%S")
+                in_dt  = datetime.strptime(f"{work_date} {ext['in_time']}",  "%Y-%m-%d %H:%M:%S")
+                ext_min += max(0, int((in_dt - out_dt).total_seconds() / 60))
+            except Exception:
+                pass
+
+    total = max(0, total_raw - break_min - ext_min)  # 実働時間
 
     # 残業判定の優先順位: 当日シフト → 個人デフォルト → 部署定時 → 会社所定時間
     shift_row = conn.execute(
@@ -380,6 +396,11 @@ def clock_out(req: ClockReq, user=Depends(get_current_user)):
         raise HTTPException(status_code=400, detail="本日はすでに退勤打刻済みです。")
     conn.execute(
         "UPDATE attendance SET clock_out=? WHERE user_id=? AND work_date=?",
+        (now_time, user["id"], today),
+    )
+    # 外出中のまま退勤した場合は退勤時刻で自動クローズ
+    conn.execute(
+        "UPDATE external_records SET in_time=? WHERE user_id=? AND work_date=? AND in_time IS NULL",
         (now_time, user["id"], today),
     )
     _calc_hours(conn, user["id"], today)
