@@ -217,25 +217,60 @@ async function loadHistory() {
     if (!res.ok) return;
     const tbody = document.getElementById('hist-body');
     tbody.innerHTML = '';
-    let totalWork = 0, totalOt = 0;
-    (d.records || []).forEach(r => {
-      totalWork += r.work_minutes || 0;
-      totalOt += r.overtime_minutes || 0;
+    const records = d.records || [];
+    const totalOt = d.total_overtime_minutes || 0;
+    let totalWork = 0;
+    records.forEach(r => { totalWork += r.work_minutes || 0; });
+
+    // 残業累計の警告レベル
+    const otH = totalOt / 60;
+    const otColor = otH >= 80 ? 'var(--danger)' : otH >= 45 ? 'var(--warning)' : 'inherit';
+    const otWarn  = otH >= 80 ? ' ⚠️ 過労注意' : otH >= 45 ? ' ⚠️ 要注意' : '';
+
+    records.forEach(r => {
       const tr = document.createElement('tr');
+      const lateBadge  = r.is_late  ? '<span style="background:#FEE2E2;color:#DC2626;font-size:0.68rem;padding:1px 5px;border-radius:4px;margin-left:3px">遅刻</span>' : '';
+      const earlyBadge = r.is_early ? '<span style="background:#FEF9C3;color:#B45309;font-size:0.68rem;padding:1px 5px;border-radius:4px;margin-left:3px">早退</span>' : '';
       tr.innerHTML = `
-        <td>${r.date}</td>
-        <td>${r.clock_in ? r.clock_in.slice(0,5) : '--'}</td>
-        <td>${r.clock_out ? r.clock_out.slice(0,5) : '--'}</td>
+        <td>${r.date.slice(5).replace('-','/')}</td>
+        <td>${r.clock_in ? r.clock_in.slice(0,5) : '--'}${lateBadge}</td>
+        <td>${r.clock_out ? r.clock_out.slice(0,5) : '--'}${earlyBadge}</td>
         <td>${r.work_minutes != null ? fmtMin(r.work_minutes) : '--'}</td>
         <td style="color:var(--warning)">${r.overtime_minutes ? fmtMin(r.overtime_minutes) : '--'}</td>
       `;
       tbody.appendChild(tr);
     });
     document.getElementById('sum-work').textContent = fmtMin(totalWork);
-    document.getElementById('sum-ot').textContent = fmtMin(totalOt);
+    const sumOtEl = document.getElementById('sum-ot');
+    sumOtEl.textContent = fmtMin(totalOt) + otWarn;
+    sumOtEl.style.color = otColor;
+
+    // 月末確認ボタン
+    const today2 = new Date();
+    const isPastMonth = parseInt(year) < today2.getFullYear() || (parseInt(year) === today2.getFullYear() && parseInt(month) < today2.getMonth() + 1);
+    const isLastWeek  = parseInt(year) === today2.getFullYear() && parseInt(month) === today2.getMonth() + 1 && today2.getDate() >= 25;
+    const confirmedAt = d.confirmed_at;
+    let confirmHtml = '';
+    if (isPastMonth || isLastWeek) {
+      if (confirmedAt) {
+        confirmHtml = `<div style="margin-top:10px;background:#D1FAE5;border-radius:8px;padding:8px 14px;font-size:0.83rem;color:#065F46">✅ ${confirmedAt.slice(0,10)} に確認済み</div>`;
+      } else {
+        confirmHtml = `<div style="margin-top:10px"><button class="btn-outline btn-sm" onclick="confirmAttendance(${year},${month})" style="border-color:var(--accent);color:var(--accent)">✅ 今月の勤怠を確認・承認する</button></div>`;
+      }
+    }
+    document.getElementById('hist-confirm').innerHTML = confirmHtml;
   } catch(e) {}
 }
 loadHistory();
+
+async function confirmAttendance(year, month) {
+  if (!confirm(`${year}年${month}月の勤怠内容を確認・承認しますか？`)) return;
+  try {
+    const res = await api(`/api/attendance/confirm?year=${year}&month=${month}`, 'POST');
+    if (!res.ok) { alert('エラーが発生しました'); return; }
+    loadHistory();
+  } catch(e) { alert('通信エラー'); }
+}
 
 // ── 有給申請 ──
 async function loadLeaveInfo() {

@@ -200,6 +200,45 @@ def login(req: LoginReq):
     }
 
 
+def _get_expected_times(conn, user_id: int, work_date: str):
+    """シフト→個人→部署→会社の優先順位で定時開始・終了を返す"""
+    company  = conn.execute("SELECT work_start, work_hours FROM company WHERE id=1").fetchone()
+    user_row = conn.execute(
+        "SELECT u.work_start, u.work_end, d.dept_work_start, d.dept_work_end FROM users u LEFT JOIN departments d ON u.department_id=d.id WHERE u.id=?",
+        (user_id,)
+    ).fetchone()
+    shift_row = conn.execute(
+        "SELECT start_time, end_time FROM shifts WHERE user_id=? AND shift_date=?",
+        (user_id, work_date)
+    ).fetchone()
+    if shift_row and shift_row["start_time"]:
+        return shift_row["start_time"][:5], (shift_row["end_time"][:5] if shift_row["end_time"] else None)
+    if user_row and user_row["work_start"]:
+        return user_row["work_start"], user_row["work_end"]
+    if user_row and user_row["dept_work_start"]:
+        return user_row["dept_work_start"], user_row["dept_work_end"]
+    start = company["work_start"] if company and company["work_start"] else "09:00"
+    return start, None
+
+
+def _flag_late_early(clock_in, clock_out, exp_start, exp_end, work_date):
+    """遅刻・早退フラグを返す"""
+    is_late = is_early = False
+    if clock_in and exp_start:
+        try:
+            ci = datetime.strptime(f"{work_date} {clock_in}", "%Y-%m-%d %H:%M:%S")
+            es = datetime.strptime(f"{work_date} {exp_start}", "%Y-%m-%d %H:%M")
+            is_late = ci > es + timedelta(minutes=1)
+        except Exception: pass
+    if clock_out and exp_end:
+        try:
+            co = datetime.strptime(f"{work_date} {clock_out}", "%Y-%m-%d %H:%M:%S")
+            ee = datetime.strptime(f"{work_date} {exp_end}", "%Y-%m-%d %H:%M")
+            is_early = co < ee - timedelta(minutes=1)
+        except Exception: pass
+    return is_late, is_early
+
+
 def _dept_id(user) -> Optional[int]:
     """manager は自部署のみ、admin は None（全部署）"""
     return user.get("department_id") if user["role"] == "manager" else None
@@ -418,8 +457,62 @@ def attendance_history(year: int = None, month: int = None, user=Depends(get_cur
         "SELECT work_date as date, clock_in, clock_out, work_minutes, overtime_minutes FROM attendance WHERE user_id=? AND strftime('%Y-%m', work_date)=? ORDER BY work_date",
         (user["id"], f"{y:04d}-{m:02d}"),
     ).fetchall()
+    records = []
+    for r in rows:
+        d = dict(r)
+        exp_start, exp_end = _get_expected_times(conn, user["id"], d["date"])
+        is_late, is_early = _flag_late_early(d["clock_in"], d["clock_out"], exp_start, exp_end, d["date"])
+        d["is_late"]  = is_late
+        d["is_early"] = is_early
+        d["expected_start"] = exp_start
+        records.append(d)
+    # 月末確認状態
+    confirmed = conn.execute(
+        "SELECT confirmed_at FROM attendance_confirmations WHERE user_id=? AND year=? AND month=?",
+        (user["id"], y, m)
+    ).fetchone()
     conn.close()
-    return {"records": [dict(r) for r in rows]}
+    total_ot = sum(r["overtime_minutes"] or 0 for r in records)
+    return {"records": records, "total_overtime_minutes": total_ot, "confirmed_at": confirmed["confirmed_at"] if confirmed else None}
+
+
+@app.post("/api/attendance/confirm")
+def confirm_attendance(year: int, month: int, user=Depends(get_current_user)):
+    conn = get_conn()
+    try:
+        conn.execute(
+            "INSERT OR REPLACE INTO attendance_confirmations (user_id, year, month) VALUES (?,?,?)",
+            (user["id"], year, month)
+        )
+        conn.commit()
+    except Exception: pass
+    conn.close()
+    return {"ok": True}
+
+
+@app.get("/api/admin/confirmations")
+def admin_confirmations(year: int = None, month: int = None, user=Depends(get_current_user)):
+    require_admin(user)
+    today = datetime.now(JST).date()
+    y = year or today.year
+    m = month or today.month
+    dept = _dept_id(user)
+    conn = get_conn()
+    q = """
+        SELECT u.name, u.employee_id, d.name as department,
+               ac.confirmed_at
+        FROM users u
+        LEFT JOIN departments d ON u.department_id=d.id
+        LEFT JOIN attendance_confirmations ac ON ac.user_id=u.id AND ac.year=? AND ac.month=?
+        WHERE u.is_active=1 AND u.role NOT IN ('admin')
+    """
+    params = [y, m]
+    if dept:
+        q += " AND u.department_id=?"; params.append(dept)
+    q += " ORDER BY d.name, u.employee_id"
+    rows = conn.execute(q, params).fetchall()
+    conn.close()
+    return {"year": y, "month": m, "employees": [dict(r) for r in rows]}
 
 
 # ── 外出・帰社 ───────────────────────────────────────────────────────────────
@@ -797,10 +890,23 @@ def emp_monthly_summary(emp_id: str, year: int = None, month: int = None, user=D
         "SELECT a.id, a.work_date as date, a.clock_in, a.clock_out, a.work_minutes, a.overtime_minutes FROM attendance a WHERE a.user_id=? AND strftime('%Y-%m', a.work_date)=? ORDER BY a.work_date",
         (emp["id"], f"{y:04d}-{m:02d}")
     ).fetchall()
-    records = [dict(r) for r in rows]
-    work_days     = sum(1 for r in records if r["clock_in"])
-    total_work    = sum(r["work_minutes"] or 0 for r in records)
+    records = []
+    for r in rows:
+        d = dict(r)
+        exp_start, exp_end = _get_expected_times(conn, emp["id"], d["date"])
+        is_late, is_early = _flag_late_early(d["clock_in"], d["clock_out"], exp_start, exp_end, d["date"])
+        d["is_late"] = is_late
+        d["is_early"] = is_early
+        d["expected_start"] = exp_start
+        d["expected_end"] = exp_end
+        records.append(d)
+    work_days      = sum(1 for r in records if r["clock_in"])
+    total_work     = sum(r["work_minutes"] or 0 for r in records)
     total_overtime = sum(r["overtime_minutes"] or 0 for r in records)
+    confirmed = conn.execute(
+        "SELECT confirmed_at FROM attendance_confirmations WHERE user_id=? AND year=? AND month=?",
+        (emp["id"], y, m)
+    ).fetchone()
     conn.close()
     return {
         "employee": dict(emp),
@@ -809,6 +915,7 @@ def emp_monthly_summary(emp_id: str, year: int = None, month: int = None, user=D
         "total_work_minutes": total_work,
         "total_overtime_minutes": total_overtime,
         "records": records,
+        "confirmed_at": confirmed["confirmed_at"] if confirmed else None,
     }
 
 @app.get("/api/admin/attendance")

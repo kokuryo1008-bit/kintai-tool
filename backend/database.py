@@ -394,6 +394,23 @@ def init_db():
         except Exception:
             pass
 
+    # Migration: attendance_confirmations table
+    try:
+        conn.executescript("""
+            CREATE TABLE IF NOT EXISTS attendance_confirmations (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL REFERENCES users(id),
+                year INTEGER NOT NULL,
+                month INTEGER NOT NULL,
+                confirmed_at TEXT DEFAULT (datetime('now','localtime')),
+                UNIQUE(user_id, year, month)
+            )
+        """)
+        conn.commit()
+    except Exception:
+        try: conn.rollback()
+        except Exception: pass
+
     # Migration: external_records table（外出・帰社）
     try:
         conn.executescript("""

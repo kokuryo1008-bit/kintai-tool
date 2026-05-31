@@ -48,7 +48,7 @@ function resetPin() {
 
 // ── セクション切り替え ──
 function showSection(sec) {
-  ['dashboard','employees','attendance','leave','trip','shifts','reports','sales','overtime','corrections','settings'].forEach(s => {
+  ['dashboard','employees','attendance','leave','trip','shifts','reports','sales','overtime','corrections','confirmations','settings'].forEach(s => {
     document.getElementById('section-' + s).classList.toggle('hidden', s !== sec);
     document.getElementById('nav-' + s)?.classList.toggle('active', s === sec);
   });
@@ -62,6 +62,7 @@ function showSection(sec) {
   if (sec === 'sales') initAdminSales();
   if (sec === 'overtime') initAdminOvertime();
   if (sec === 'corrections') loadCorrections('pending');
+  if (sec === 'confirmations') initConfirmations();
   if (sec === 'settings') loadSettings();
 }
 
@@ -127,6 +128,60 @@ async function loadDashboard() {
       tbody.appendChild(tr);
     });
     if (!today.records?.length) tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-muted)">データなし</td></tr>';
+  } catch(e) {}
+}
+
+// ── 月末勤怠確認 ─────────────────────────────────────────────────────────────
+
+function initConfirmations() {
+  const now = new Date();
+  const ysel = document.getElementById('conf-year');
+  const msel = document.getElementById('conf-month');
+  if (!ysel.options.length) {
+    for (let y = now.getFullYear(); y >= now.getFullYear() - 1; y--) {
+      const o = document.createElement('option');
+      o.value = y; o.textContent = y + '年';
+      if (y === now.getFullYear()) o.selected = true;
+      ysel.appendChild(o);
+    }
+    for (let m = 1; m <= 12; m++) {
+      const o = document.createElement('option');
+      o.value = m; o.textContent = m + '月';
+      if (m === now.getMonth() + 1) o.selected = true;
+      msel.appendChild(o);
+    }
+  }
+  loadConfirmations();
+}
+
+async function loadConfirmations() {
+  const year  = document.getElementById('conf-year').value;
+  const month = document.getElementById('conf-month').value;
+  try {
+    const res = await api(`/api/admin/confirmations?year=${year}&month=${month}`);
+    const d = await res.json();
+    const el = document.getElementById('confirmations-list');
+    const emps = d.employees || [];
+    const confirmed   = emps.filter(e => e.confirmed_at);
+    const unconfirmed = emps.filter(e => !e.confirmed_at);
+    el.innerHTML = `
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="card">
+          <div style="font-weight:700;color:var(--accent);margin-bottom:10px">✅ 確認済み（${confirmed.length}名）</div>
+          ${confirmed.length ? confirmed.map(e => `
+            <div style="padding:8px 0;border-bottom:1px solid var(--border);font-size:0.85rem;display:flex;justify-content:space-between">
+              <span><strong>${e.name}</strong> <span style="color:var(--text-muted)">${e.department||'--'}</span></span>
+              <span style="color:var(--text-muted);font-size:0.75rem">${e.confirmed_at.slice(0,10)}</span>
+            </div>`).join('') : '<div style="color:var(--text-muted);font-size:0.85rem">なし</div>'}
+        </div>
+        <div class="card">
+          <div style="font-weight:700;color:var(--warning);margin-bottom:10px">⏳ 未確認（${unconfirmed.length}名）</div>
+          ${unconfirmed.length ? unconfirmed.map(e => `
+            <div style="padding:8px 0;border-bottom:1px solid var(--border);font-size:0.85rem">
+              <strong>${e.name}</strong> <span style="color:var(--text-muted)">${e.department||'--'}</span>
+            </div>`).join('') : '<div style="color:var(--text-muted);font-size:0.85rem">全員確認済み 🎉</div>'}
+        </div>
+      </div>`;
   } catch(e) {}
 }
 
@@ -482,8 +537,8 @@ function renderEmpDetail(data, year, month) {
     rows += `<tr style="${rowBg}">
       <td style="white-space:nowrap;font-weight:${isToday?700:400}">${month}/${d}</td>
       <td style="${dowColor};font-weight:600">${DOW[dow]}</td>
-      <td style="color:var(--accent);font-weight:600">${r?.clock_in ? r.clock_in.slice(0,5) : '<span style="color:#CBD5E0">--</span>'}</td>
-      <td style="color:var(--danger)">${r?.clock_out ? r.clock_out.slice(0,5) : '<span style="color:#CBD5E0">--</span>'}</td>
+      <td style="color:var(--accent);font-weight:600">${r?.clock_in ? r.clock_in.slice(0,5) : '<span style="color:#CBD5E0">--</span>'}${r?.is_late ? '<span style="background:#FEE2E2;color:#DC2626;font-size:0.65rem;padding:1px 5px;border-radius:4px;margin-left:3px">遅刻</span>' : ''}</td>
+      <td style="color:var(--danger)">${r?.clock_out ? r.clock_out.slice(0,5) : '<span style="color:#CBD5E0">--</span>'}${r?.is_early ? '<span style="background:#FEF9C3;color:#B45309;font-size:0.65rem;padding:1px 5px;border-radius:4px;margin-left:3px">早退</span>' : ''}</td>
       <td>${r?.work_minutes ? fmtMin(r.work_minutes) : '<span style="color:#CBD5E0">--</span>'}</td>
       <td style="color:var(--warning)">${r?.overtime_minutes ? fmtMin(r.overtime_minutes) : ''}</td>
       <td>${r ? `<button class="btn-outline btn-sm" onclick="openAttEdit(${r.id},'${r.date}','${r.clock_in||''}','${r.clock_out||''}')">修正</button>` : ''}</td>
@@ -522,9 +577,20 @@ function renderEmpDetail(data, year, month) {
       </div>
       <div class="card" style="text-align:center;padding:14px">
         <div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:4px">残業時間</div>
-        <div style="font-size:1.8rem;font-weight:800;color:var(--warning)">${fmtMin(data.total_overtime_minutes)}</div>
+        ${(() => {
+          const otH = data.total_overtime_minutes / 60;
+          const c = otH >= 80 ? 'var(--danger)' : otH >= 45 ? 'var(--warning)' : 'var(--warning)';
+          const w = otH >= 80 ? '<div style="font-size:0.7rem;color:var(--danger)">⚠️ 過労注意</div>' : otH >= 45 ? '<div style="font-size:0.7rem;color:var(--warning)">⚠️ 要注意</div>' : '';
+          return `<div style="font-size:1.8rem;font-weight:800;color:${c}">${fmtMin(data.total_overtime_minutes)}</div>${w}`;
+        })()}
       </div>
     </div>
+
+    <!-- 月末確認状況 -->
+    ${data.confirmed_at
+      ? `<div style="background:#D1FAE5;border-radius:8px;padding:8px 14px;margin-bottom:12px;font-size:0.83rem;color:#065F46">✅ ${data.confirmed_at.slice(0,10)} に本人確認済み</div>`
+      : `<div style="background:#FEF9C3;border-radius:8px;padding:8px 14px;margin-bottom:12px;font-size:0.83rem;color:#92400E">⏳ 本人未確認</div>`
+    }
 
     <!-- 勤怠テーブル -->
     <div class="card">

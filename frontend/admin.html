@@ -31,6 +31,7 @@
       <div class="sidebar-item" onclick="showSection('sales')" id="nav-sales">💼 営業報告</div>
       <div class="sidebar-item" onclick="showSection('overtime')" id="nav-overtime">⏰ 残業申請</div>
       <div class="sidebar-item" onclick="showSection('corrections')" id="nav-corrections">✏️ 打刻修正申請 <span id="correction-badge" style="display:none;background:var(--danger);color:white;border-radius:20px;padding:1px 7px;font-size:0.72rem;margin-left:4px">0</span></div>
+      <div class="sidebar-item" onclick="showSection('confirmations')" id="nav-confirmations">✅ 月末勤怠確認</div>
       <div class="sidebar-item" onclick="showSection('settings')" id="nav-settings">⚙️ 設定</div>
     </div>
 
@@ -415,6 +416,19 @@
         </div>
       </div>
 
+      <!-- 月末勤怠確認 -->
+      <div id="section-confirmations" class="hidden">
+        <h2 style="font-size:1.2rem;font-weight:800;color:var(--primary);margin-bottom:20px">✅ 月末勤怠確認状況</h2>
+        <div class="card" style="margin-bottom:12px">
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <select id="conf-year" style="width:auto"></select>
+            <select id="conf-month" style="width:auto"></select>
+            <button class="btn-outline btn-sm" onclick="loadConfirmations()">表示</button>
+          </div>
+        </div>
+        <div id="confirmations-list"></div>
+      </div>
+
       <!-- 打刻修正申請 -->
       <div id="section-corrections" class="hidden">
         <h2 style="font-size:1.2rem;font-weight:800;color:var(--primary);margin-bottom:20px">✏️ 打刻修正申請</h2>
@@ -623,6 +637,6 @@
   </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-  <script src="/static/admin.js?v=6"></script>
+  <script src="/static/admin.js?v=7"></script>
 </body>
 </html>
