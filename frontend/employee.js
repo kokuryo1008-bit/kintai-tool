@@ -19,14 +19,14 @@ updateClock();
   const ysel = document.getElementById('hist-year');
   for (let y = now.getFullYear(); y >= now.getFullYear() - 2; y--) {
     const o = document.createElement('option');
-    o.value = y; o.textContent = y + '年';
+    o.value = y; o.dataset.y = 1; o.textContent = y + _t('unit_year');
     if (y === now.getFullYear()) o.selected = true;
     ysel.appendChild(o);
   }
   const msel = document.getElementById('hist-month');
   for (let m = 1; m <= 12; m++) {
     const o = document.createElement('option');
-    o.value = m; o.textContent = m + '月';
+    o.value = m; o.dataset.m = 1; o.textContent = m + _t('unit_month');
     if (m === now.getMonth() + 1) o.selected = true;
     msel.appendChild(o);
   }
@@ -362,7 +362,7 @@ function showTab(name) {
   const ysel = document.getElementById('shift-emp-year');
   for (let y = now.getFullYear(); y >= now.getFullYear() - 1; y--) {
     const o = document.createElement('option');
-    o.value = y; o.textContent = y + '年';
+    o.value = y; o.dataset.y = 1; o.textContent = y + _t('unit_year');
     if (y === now.getFullYear()) o.selected = true;
     ysel.appendChild(o);
   }
@@ -371,14 +371,14 @@ function showTab(name) {
     const exists = [...ysel.options].some(o => o.value == y);
     if (!exists) {
       const o = document.createElement('option');
-      o.value = y; o.textContent = y + '年';
+      o.value = y; o.dataset.y = 1; o.textContent = y + _t('unit_year');
       ysel.appendChild(o);
     }
   }
   const msel = document.getElementById('shift-emp-month');
   for (let m = 1; m <= 12; m++) {
     const o = document.createElement('option');
-    o.value = m; o.textContent = m + '月';
+    o.value = m; o.dataset.m = 1; o.textContent = m + _t('unit_month');
     if (m === now.getMonth() + 1) o.selected = true;
     msel.appendChild(o);
   }
@@ -649,14 +649,14 @@ function calcMinutes(start, end) {
   const ysel = document.getElementById('rep-year');
   for (let y = now.getFullYear(); y >= now.getFullYear() - 2; y--) {
     const o = document.createElement('option');
-    o.value = y; o.textContent = y + '年';
+    o.value = y; o.dataset.y = 1; o.textContent = y + _t('unit_year');
     if (y === now.getFullYear()) o.selected = true;
     ysel.appendChild(o);
   }
   const msel = document.getElementById('rep-month');
   for (let m = 1; m <= 12; m++) {
     const o = document.createElement('option');
-    o.value = m; o.textContent = m + '月';
+    o.value = m; o.dataset.m = 1; o.textContent = m + _t('unit_month');
     if (m === now.getMonth() + 1) o.selected = true;
     msel.appendChild(o);
   }
@@ -796,14 +796,14 @@ async function deleteReportEntry(entryId) {
   const ysel = document.getElementById('sale-year');
   for (let y = now.getFullYear(); y >= now.getFullYear() - 2; y--) {
     const o = document.createElement('option');
-    o.value = y; o.textContent = y + '年';
+    o.value = y; o.dataset.y = 1; o.textContent = y + _t('unit_year');
     if (y === now.getFullYear()) o.selected = true;
     ysel.appendChild(o);
   }
   const msel = document.getElementById('sale-month');
   for (let m = 1; m <= 12; m++) {
     const o = document.createElement('option');
-    o.value = m; o.textContent = m + '月';
+    o.value = m; o.dataset.m = 1; o.textContent = m + _t('unit_month');
     if (m === now.getMonth() + 1) o.selected = true;
     msel.appendChild(o);
   }
@@ -935,14 +935,14 @@ async function deleteSales(entryId) {
   const ysel = document.getElementById('ot-year');
   for (let y = now.getFullYear(); y >= now.getFullYear() - 2; y--) {
     const o = document.createElement('option');
-    o.value = y; o.textContent = y + '年';
+    o.value = y; o.dataset.y = 1; o.textContent = y + _t('unit_year');
     if (y === now.getFullYear()) o.selected = true;
     ysel.appendChild(o);
   }
   const msel = document.getElementById('ot-month');
   for (let m = 1; m <= 12; m++) {
     const o = document.createElement('option');
-    o.value = m; o.textContent = m + '月';
+    o.value = m; o.dataset.m = 1; o.textContent = m + _t('unit_month');
     if (m === now.getMonth() + 1) o.selected = true;
     msel.appendChild(o);
   }
@@ -1063,9 +1063,15 @@ function statusLabel(s) {
 
 /* 言語切替後に動的テキストを再描画するフック */
 function _refreshDynamicText() {
-  // 表示中のステータスを再描画（i18n.jsから呼ばれる）
   loadTodayStatus();
   loadExternalStatus().catch(() => {});
+  // 年・月セレクトの単位テキストを更新
+  document.querySelectorAll('option[data-y]').forEach(o => {
+    o.textContent = o.value + _t('unit_year');
+  });
+  document.querySelectorAll('option[data-m]').forEach(o => {
+    o.textContent = o.value + _t('unit_month');
+  });
 }
 
 function statusBadge(s) {
