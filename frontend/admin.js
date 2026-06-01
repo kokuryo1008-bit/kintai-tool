@@ -204,7 +204,7 @@ function renderCorrections(reqs) {
           <div>出勤: ${r.requested_clock_in ? r.requested_clock_in.slice(0,5) : '--'} ／ 退勤: ${r.requested_clock_out ? r.requested_clock_out.slice(0,5) : '--'}</div>
         </div>
       </div>
-      ${r.reason ? `<div style="font-size:0.83rem;color:var(--text-muted);margin-bottom:10px">理由: ${r.reason}</div>` : ''}
+      ${r.reason ? `<div style="font-size:0.83rem;color:var(--text-muted);margin-bottom:10px">理由: ${tlSpan(r.reason)}</div>` : ''}
       ${r.status === 'pending' ? `
         <div style="display:flex;gap:8px">
           <button class="btn-primary" style="width:auto;padding:8px 20px" onclick="approveCorrection(${r.id})">承認</button>
@@ -805,7 +805,7 @@ function renderLeave() {
       </div>
       <div style="margin-top:8px;font-size:0.88rem">
         ${r.start_date} ～ ${r.end_date}（${r.days}日）
-        ${r.reason ? `<span style="color:var(--text-muted)"> / ${r.reason}</span>` : ''}
+        ${r.reason ? `<div style="margin-top:4px;color:var(--text-muted)">理由: ${tlSpan(r.reason)}</div>` : ''}
       </div>
       ${r.status === 'pending' ? `
         <div style="display:flex;gap:8px;margin-top:10px">
@@ -864,8 +864,8 @@ function renderTrip() {
         <span class="badge ${statusBadge(r.status)}">${statusLabel(r.status)}</span>
       </div>
       <div style="margin-top:8px;font-size:0.88rem">
-        ${r.trip_date} / ${r.destination}
-        ${r.reason ? `<span style="color:var(--text-muted)"> / ${r.reason}</span>` : ''}
+        ${r.trip_date} / ${tlSpan(r.destination)}
+        ${r.reason ? `<div style="margin-top:4px;color:var(--text-muted)">理由: ${tlSpan(r.reason)}</div>` : ''}
       </div>
       ${r.status === 'pending' ? `
         <div style="display:flex;gap:8px;margin-top:10px">
@@ -2354,11 +2354,11 @@ function renderAdminSales() {
       <td style="color:var(--text-muted)">${r.department || '--'}</td>
       <td style="font-weight:600">${r.client_company}</td>
       <td style="font-size:0.78rem">${[r.client_dept, r.client_name].filter(Boolean).join(' / ') || '--'}</td>
-      <td style="font-size:0.78rem">${r.purpose || '--'}</td>
-      <td style="font-size:0.78rem;max-width:200px;white-space:pre-wrap;word-break:break-word">${r.content || '--'}</td>
+      <td style="font-size:0.78rem">${tlSpan(r.purpose)}</td>
+      <td style="font-size:0.78rem;max-width:200px;white-space:pre-wrap;word-break:break-word">${tlSpan(r.content)}</td>
       <td style="text-align:right">${r.amount != null ? Number(r.amount).toLocaleString() + '円' : '--'}</td>
       <td><span style="font-size:0.72rem;font-weight:700;padding:2px 8px;border-radius:12px;background:${(statusColor[r.status]||'#94A3B8')}22;color:${statusColor[r.status]||'#94A3B8'}">${r.status||'--'}</span></td>
-      <td style="font-size:0.78rem">${r.next_action || '--'}</td>
+      <td style="font-size:0.78rem">${tlSpan(r.next_action)}</td>
       <td style="white-space:nowrap">${r.next_date || '--'}</td>
     `;
     tbody.appendChild(tr);

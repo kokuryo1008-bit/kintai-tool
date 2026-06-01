@@ -151,7 +151,10 @@
 
       <!-- 有給申請 -->
       <div id="section-leave" class="hidden">
-        <h2 style="font-size:1.2rem;font-weight:800;color:var(--primary);margin-bottom:20px">有給申請管理</h2>
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap">
+          <h2 style="font-size:1.2rem;font-weight:800;color:var(--primary);margin:0">有給申請管理</h2>
+          <button class="btn-outline btn-sm" onclick="translateAll(document.getElementById('leave-list'))" style="border-color:#3B82F6;color:#1E40AF;font-size:0.78rem">🌐 理由を一括翻訳</button>
+        </div>
         <div class="card">
           <div style="display:flex;gap:8px;margin-bottom:16px">
             <button class="btn-outline btn-sm" onclick="filterLeave('pending')" id="lf-pending" style="border-color:var(--warning);color:var(--warning)">申請中</button>
@@ -163,7 +166,10 @@
 
       <!-- 出張申請 -->
       <div id="section-trip" class="hidden">
-        <h2 style="font-size:1.2rem;font-weight:800;color:var(--primary);margin-bottom:20px">出張申請管理</h2>
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap">
+          <h2 style="font-size:1.2rem;font-weight:800;color:var(--primary);margin:0">出張申請管理</h2>
+          <button class="btn-outline btn-sm" onclick="translateAll(document.getElementById('trip-list'))" style="border-color:#3B82F6;color:#1E40AF;font-size:0.78rem">🌐 行き先・理由を一括翻訳</button>
+        </div>
         <div class="card">
           <div style="display:flex;gap:8px;margin-bottom:16px">
             <button class="btn-outline btn-sm" onclick="filterTrip('pending')" id="tf-pending" style="border-color:var(--warning);color:var(--warning)">申請中</button>
@@ -373,7 +379,10 @@
 
       <!-- 営業報告 -->
       <div id="section-sales" class="hidden">
-        <h2 style="font-size:1.2rem;font-weight:800;color:var(--primary);margin-bottom:20px">営業報告</h2>
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap">
+          <h2 style="font-size:1.2rem;font-weight:800;color:var(--primary);margin:0">営業報告</h2>
+          <button class="btn-outline btn-sm" onclick="translateAll(document.getElementById('sale-adm-body'))" style="border-color:#3B82F6;color:#1E40AF;font-size:0.78rem">🌐 目的・内容を一括翻訳</button>
+        </div>
         <div class="card" style="margin-bottom:16px">
           <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end">
             <div class="form-group" style="margin:0;flex:1;min-width:100px">
@@ -418,7 +427,10 @@
 
       <!-- 打刻修正申請 -->
       <div id="section-corrections" class="hidden">
-        <h2 style="font-size:1.2rem;font-weight:800;color:var(--primary);margin-bottom:20px">✏️ 打刻修正申請</h2>
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap">
+          <h2 style="font-size:1.2rem;font-weight:800;color:var(--primary);margin:0">✏️ 打刻修正申請</h2>
+          <button class="btn-outline btn-sm" onclick="translateAll(document.getElementById('corrections-list'))" style="border-color:#3B82F6;color:#1E40AF;font-size:0.78rem">🌐 理由を一括翻訳</button>
+        </div>
         <div class="card" style="margin-bottom:12px">
           <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
             <button class="btn-outline btn-sm" onclick="loadCorrections('pending')" id="cf-pending" style="border-color:var(--warning);color:var(--warning)">申請中</button>
@@ -624,6 +636,7 @@
   </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-  <script src="/static/admin.js?v=8"></script>
+  <script src="/static/translate.js?v=1"></script>
+  <script src="/static/admin.js?v=9"></script>
 </body>
 </html>
