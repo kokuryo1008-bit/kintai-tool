@@ -12,9 +12,17 @@
 <body>
   <nav class="navbar">
     <div class="navbar-brand">🕐 勤怠管理</div>
-    <div class="navbar-user">
+    <div class="navbar-user" style="gap:6px;flex-wrap:wrap">
+      <!-- 言語切替 -->
+      <div style="display:flex;gap:3px;align-items:center">
+        <button class="lang-btn" data-lang="ja"  onclick="setLang('ja')"  style="padding:3px 8px;border-radius:12px;border:1px solid #CBD5E1;background:white;font-size:0.75rem;cursor:pointer;font-weight:800;opacity:1">日本語</button>
+        <button class="lang-btn" data-lang="vi"  onclick="setLang('vi')"  style="padding:3px 8px;border-radius:12px;border:1px solid #CBD5E1;background:white;font-size:0.75rem;cursor:pointer;font-weight:400;opacity:.5">VN</button>
+        <button class="lang-btn" data-lang="zh"  onclick="setLang('zh')"  style="padding:3px 8px;border-radius:12px;border:1px solid #CBD5E1;background:white;font-size:0.75rem;cursor:pointer;font-weight:400;opacity:.5">中文</button>
+        <button class="lang-btn" data-lang="id"  onclick="setLang('id')"  style="padding:3px 8px;border-radius:12px;border:1px solid #CBD5E1;background:white;font-size:0.75rem;cursor:pointer;font-weight:400;opacity:.5">ID</button>
+      </div>
+      <a href="/manual" target="_blank" style="padding:4px 12px;border-radius:12px;border:1px solid #CBD5E1;background:white;color:#475569;font-size:0.78rem;font-weight:600;text-decoration:none" data-i18n="nav_help">使い方</a>
       <span id="user-name"></span>
-      <button class="btn-logout" onclick="logout()">ログアウト</button>
+      <button class="btn-logout" onclick="logout()" data-i18n="nav_logout">ログアウト</button>
     </div>
   </nav>
 
@@ -23,22 +31,22 @@
     <div class="clock-card">
       <div class="clock-time" id="current-time">--:--:--</div>
       <div class="clock-date" id="current-date"></div>
-      <div class="clock-status" id="clock-status">読み込み中...</div>
+      <div class="clock-status" id="clock-status" data-i18n="status_loading">読み込み中...</div>
       <div id="today-shift" style="font-size:0.8rem;opacity:.8;margin-top:4px"></div>
       <div style="margin-top:16px;margin-bottom:8px">
         <label style="display:inline-flex;align-items:center;gap:8px;cursor:pointer;font-size:0.85rem;opacity:.85">
           <input type="checkbox" id="toggle-trip" onchange="updateTripMode()" style="width:16px;height:16px;cursor:pointer">
-          ✈️ 出張中（GPS制限を解除）
+          <span data-i18n="trip_mode">✈️ 出張中（GPS制限を解除）</span>
         </label>
       </div>
       <div class="clock-buttons">
-        <button class="btn-clock btn-clock-in" id="btn-in" onclick="clockIn()" disabled>出勤</button>
-        <button class="btn-clock btn-clock-out" id="btn-out" onclick="clockOut()" disabled>退勤</button>
+        <button class="btn-clock btn-clock-in" id="btn-in" onclick="clockIn()" disabled data-i18n="btn_clock_in">出勤</button>
+        <button class="btn-clock btn-clock-out" id="btn-out" onclick="clockOut()" disabled data-i18n="btn_clock_out">退勤</button>
       </div>
       <!-- 外出・帰社ボタン -->
       <div id="external-buttons" style="display:none;margin-top:12px;display:flex;gap:8px;justify-content:center">
-        <button id="btn-go-out" onclick="goOut()" style="padding:10px 20px;border-radius:8px;border:2px solid #F59E0B;background:white;color:#D97706;font-weight:700;cursor:pointer;font-size:0.88rem" disabled>🚗 外出</button>
-        <button id="btn-return" onclick="returnFromOut()" style="padding:10px 20px;border-radius:8px;border:2px solid #10B981;background:white;color:#059669;font-weight:700;cursor:pointer;font-size:0.88rem;display:none">🏢 帰社</button>
+        <button id="btn-go-out" onclick="goOut()" style="padding:10px 20px;border-radius:8px;border:2px solid #F59E0B;background:white;color:#D97706;font-weight:700;cursor:pointer;font-size:0.88rem" disabled data-i18n="btn_go_out">🚗 外出</button>
+        <button id="btn-return" onclick="returnFromOut()" style="padding:10px 20px;border-radius:8px;border:2px solid #10B981;background:white;color:#059669;font-weight:700;cursor:pointer;font-size:0.88rem;display:none" data-i18n="btn_return">🏢 帰社</button>
       </div>
       <!-- 外出履歴（本日） -->
       <div id="external-log" style="margin-top:10px;font-size:0.78rem;color:rgba(255,255,255,.8)"></div>
@@ -46,28 +54,28 @@
 
     <!-- GPS警告 -->
     <div id="gps-warning" class="card hidden" style="border-left:4px solid var(--warning);margin-bottom:12px">
-      <div style="color:var(--warning);font-weight:600;margin-bottom:4px">📍 GPS取得中...</div>
-      <div style="font-size:0.82rem;color:var(--text-muted)">位置情報を許可してください</div>
+      <div style="color:var(--warning);font-weight:600;margin-bottom:4px" data-i18n="gps_getting">📍 GPS取得中...</div>
+      <div style="font-size:0.82rem;color:var(--text-muted)" data-i18n="gps_allow">位置情報を許可してください</div>
     </div>
 
     <!-- 本日の勤務情報 -->
     <div class="card" style="margin-bottom:12px">
-      <div class="card-title">📊 本日の勤務</div>
+      <div class="card-title" data-i18n="card_today">📊 本日の勤務</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
         <div style="background:#F8FAFC;border-radius:8px;padding:12px;text-align:center">
-          <div style="font-size:0.75rem;color:var(--text-muted)">出勤時刻</div>
+          <div style="font-size:0.75rem;color:var(--text-muted)" data-i18n="label_clock_in_time">出勤時刻</div>
           <div style="font-size:1.3rem;font-weight:800;color:var(--accent)" id="disp-in">--:--</div>
         </div>
         <div style="background:#F8FAFC;border-radius:8px;padding:12px;text-align:center">
-          <div style="font-size:0.75rem;color:var(--text-muted)">退勤時刻</div>
+          <div style="font-size:0.75rem;color:var(--text-muted)" data-i18n="label_clock_out_time">退勤時刻</div>
           <div style="font-size:1.3rem;font-weight:800;color:var(--danger)" id="disp-out">--:--</div>
         </div>
         <div style="background:#F8FAFC;border-radius:8px;padding:12px;text-align:center">
-          <div style="font-size:0.75rem;color:var(--text-muted)">勤務時間</div>
+          <div style="font-size:0.75rem;color:var(--text-muted)" data-i18n="label_work_hours">勤務時間</div>
           <div style="font-size:1.3rem;font-weight:800;color:var(--primary)" id="disp-work">--</div>
         </div>
         <div style="background:#FEF3C7;border-radius:8px;padding:12px;text-align:center">
-          <div style="font-size:0.75rem;color:#92400E">残業時間</div>
+          <div style="font-size:0.75rem;color:#92400E" data-i18n="label_overtime">残業時間</div>
           <div style="font-size:1.3rem;font-weight:800;color:#D97706" id="disp-ot">--</div>
         </div>
       </div>
@@ -76,13 +84,13 @@
     <!-- タブ -->
     <div class="card">
       <div class="tabs" style="overflow-x:auto;flex-wrap:nowrap;-webkit-overflow-scrolling:touch">
-        <button class="tab-btn active" onclick="showTab('history')" style="white-space:nowrap">勤務履歴</button>
-        <button class="tab-btn" onclick="showTab('shift')" style="white-space:nowrap">シフト表</button>
-        <button class="tab-btn" onclick="showTab('leave')" style="white-space:nowrap">有給申請</button>
-        <button class="tab-btn" onclick="showTab('report')" style="white-space:nowrap">日報</button>
-        <button class="tab-btn" onclick="showTab('sales')" style="white-space:nowrap">営業報告</button>
-        <button class="tab-btn" onclick="showTab('overtime')" style="white-space:nowrap">残業申請</button>
-        <button class="tab-btn" onclick="showTab('correction')" style="white-space:nowrap">打刻修正申請</button>
+        <button class="tab-btn active" onclick="showTab('history')" style="white-space:nowrap" data-i18n="tab_history">勤務履歴</button>
+        <button class="tab-btn" onclick="showTab('shift')" style="white-space:nowrap" data-i18n="tab_shift">シフト表</button>
+        <button class="tab-btn" onclick="showTab('leave')" style="white-space:nowrap" data-i18n="tab_leave">有給申請</button>
+        <button class="tab-btn" onclick="showTab('report')" style="white-space:nowrap" data-i18n="tab_report">日報</button>
+        <button class="tab-btn" onclick="showTab('sales')" style="white-space:nowrap" data-i18n="tab_sales">営業報告</button>
+        <button class="tab-btn" onclick="showTab('overtime')" style="white-space:nowrap" data-i18n="tab_overtime">残業申請</button>
+        <button class="tab-btn" onclick="showTab('correction')" style="white-space:nowrap" data-i18n="tab_correction">打刻修正申請</button>
       </div>
 
       <!-- シフト表 -->
@@ -186,21 +194,21 @@
 
       <!-- 打刻修正申請 -->
       <div id="tab-correction" style="display:none">
-        <div style="background:#FEF3C7;border-radius:8px;padding:12px 14px;margin-bottom:16px;font-size:0.85rem;color:#92400E">
+        <div style="background:#FEF3C7;border-radius:8px;padding:12px 14px;margin-bottom:16px;font-size:0.85rem;color:#92400E" data-i18n="corr_desc">
           打刻の修正が必要な場合はこちらから申請してください。管理者が確認・承認します。
         </div>
         <div class="card" style="margin-bottom:16px">
-          <div class="card-title">📝 新規申請</div>
-          <div class="form-group"><label>対象日</label><input type="date" id="corr-date"></div>
+          <div class="card-title" data-i18n="corr_title">📝 新規申請</div>
+          <div class="form-group"><label data-i18n="corr_date">対象日</label><input type="date" id="corr-date"></div>
           <div style="display:flex;gap:12px;margin-bottom:12px">
-            <div class="form-group" style="margin:0;flex:1"><label>修正後 出勤時刻</label><input type="time" id="corr-in"></div>
-            <div class="form-group" style="margin:0;flex:1"><label>修正後 退勤時刻</label><input type="time" id="corr-out"></div>
+            <div class="form-group" style="margin:0;flex:1"><label data-i18n="corr_in">修正後 出勤時刻</label><input type="time" id="corr-in"></div>
+            <div class="form-group" style="margin:0;flex:1"><label data-i18n="corr_out">修正後 退勤時刻</label><input type="time" id="corr-out"></div>
           </div>
-          <div class="form-group"><label>理由</label><input type="text" id="corr-reason" placeholder="例：打刻忘れのため"></div>
-          <button class="btn-primary" onclick="submitCorrection()">申請する</button>
+          <div class="form-group"><label data-i18n="corr_reason">理由</label><input type="text" id="corr-reason" placeholder="例：打刻忘れのため"></div>
+          <button class="btn-primary" onclick="submitCorrection()" data-i18n="btn_apply">申請する</button>
         </div>
         <div class="card">
-          <div class="card-title">申請履歴</div>
+          <div class="card-title" data-i18n="corr_history">申請履歴</div>
           <div id="correction-history"></div>
         </div>
       </div>
@@ -208,15 +216,15 @@
       <!-- 有給申請 -->
       <div id="tab-leave" class="hidden">
         <div style="background:#D1FAE5;border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:0.88rem">
-          有給残数: <strong id="leave-remaining" style="font-size:1.1rem;color:var(--accent)">--</strong> 日
+          <span data-i18n="leave_remaining">有給残数</span>: <strong id="leave-remaining" style="font-size:1.1rem;color:var(--accent)">--</strong><span data-i18n="leave_remaining_unit"> 日</span>
         </div>
-        <div class="form-group"><label>開始日</label><input type="date" id="leave-start"></div>
-        <div class="form-group"><label>終了日</label><input type="date" id="leave-end"></div>
-        <div class="form-group"><label>取得日数</label><input type="number" id="leave-days" min="0.5" step="0.5" placeholder="例: 1"></div>
-        <div class="form-group"><label>理由（任意）</label><input type="text" id="leave-reason" placeholder="例: 私用のため"></div>
-        <button class="btn-primary" onclick="submitLeave()">申請する</button>
+        <div class="form-group"><label data-i18n="label_start_date">開始日</label><input type="date" id="leave-start"></div>
+        <div class="form-group"><label data-i18n="label_end_date">終了日</label><input type="date" id="leave-end"></div>
+        <div class="form-group"><label data-i18n="label_days">取得日数</label><input type="number" id="leave-days" min="0.5" step="0.5" placeholder="例: 1"></div>
+        <div class="form-group"><label data-i18n="label_reason">理由（任意）</label><input type="text" id="leave-reason" placeholder="例: 私用のため"></div>
+        <button class="btn-primary" onclick="submitLeave()" data-i18n="btn_apply">申請する</button>
         <div style="margin-top:16px">
-          <div style="font-weight:600;font-size:0.88rem;color:var(--text-muted);margin-bottom:8px">申請履歴</div>
+          <div style="font-weight:600;font-size:0.88rem;color:var(--text-muted);margin-bottom:8px" data-i18n="leave_history_title">申請履歴</div>
           <div id="leave-history"></div>
         </div>
       </div>
@@ -286,6 +294,7 @@
   </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-  <script src="/static/employee.js?v=9"></script>
+  <script src="/static/i18n.js?v=1"></script>
+  <script src="/static/employee.js?v=10"></script>
 </body>
 </html>

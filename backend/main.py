@@ -171,6 +171,10 @@ def employee_page():
 def admin_page():
     return FileResponse(str(FRONTEND_DIR / "admin.html"))
 
+@app.get("/manual")
+def manual_page():
+    return FileResponse(str(FRONTEND_DIR / "manual.html"))
+
 
 # ── 認証 ──────────────────────────────────────────────────────────────────────
 

@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>使用方法 / Hướng dẫn / 使用说明 / Panduan</title>
+  <link rel="stylesheet" href="/static/common.css">
+  <style>
+    body { background: #F1F5F9; }
+    .manual-wrap { max-width: 720px; margin: 0 auto; padding: 16px; }
+    .lang-bar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; background: white; border-radius: 12px; padding: 12px 16px; box-shadow: 0 1px 4px rgba(0,0,0,.08); align-items: center; }
+    .lang-bar span { font-size: 0.82rem; color: #64748B; margin-right: 4px; }
+    .lang-btn { padding: 6px 16px; border-radius: 20px; border: 1.5px solid #3B82F6; background: white; color: #1E40AF; font-weight: 700; font-size: 0.88rem; cursor: pointer; transition: .15s; }
+    .lang-btn.active { background: #1E40AF; color: white; }
+    .pdf-btn { margin-left: auto; padding: 7px 18px; border-radius: 20px; border: 1.5px solid #10B981; background: white; color: #059669; font-weight: 700; font-size: 0.88rem; cursor: pointer; }
+    .back-btn { display: inline-flex; align-items: center; gap: 6px; margin-bottom: 14px; padding: 7px 16px; border-radius: 20px; border: 1.5px solid #CBD5E1; background: white; color: #475569; font-size: 0.85rem; font-weight: 600; cursor: pointer; text-decoration: none; }
+    .sec { background: white; border-radius: 14px; padding: 20px 22px; margin-bottom: 14px; box-shadow: 0 1px 4px rgba(0,0,0,.06); }
+    .sec h2 { font-size: 1.05rem; font-weight: 800; color: #1E40AF; margin: 0 0 12px; border-bottom: 2px solid #DBEAFE; padding-bottom: 8px; }
+    .sec h3 { font-size: 0.92rem; font-weight: 700; color: #1E3A5F; margin: 14px 0 6px; }
+    .sec p, .sec li { font-size: 0.88rem; line-height: 1.7; color: #374151; margin: 4px 0; }
+    .sec ul { padding-left: 18px; margin: 6px 0; }
+    .step { display: flex; gap: 10px; align-items: flex-start; margin-bottom: 8px; }
+    .step-num { min-width: 24px; height: 24px; border-radius: 50%; background: #1E40AF; color: white; font-size: 0.78rem; font-weight: 800; display: flex; align-items: center; justify-content: center; margin-top: 2px; }
+    .step-text { font-size: 0.88rem; line-height: 1.6; color: #374151; }
+    .note { background: #FEF3C7; border-left: 3px solid #F59E0B; border-radius: 6px; padding: 8px 12px; font-size: 0.82rem; color: #92400E; margin: 10px 0; }
+    .note-blue { background: #EFF6FF; border-left: 3px solid #3B82F6; border-radius: 6px; padding: 8px 12px; font-size: 0.82rem; color: #1E40AF; margin: 10px 0; }
+    .chip { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 0.8rem; font-weight: 700; margin: 2px; }
+    .chip-green { background: #D1FAE5; color: #065F46; }
+    .chip-blue  { background: #DBEAFE; color: #1E40AF; }
+    .chip-yellow{ background: #FEF3C7; color: #92400E; }
+    .page-title { font-size: 1.3rem; font-weight: 800; color: #1E3A5F; margin-bottom: 4px; }
+    .page-sub { font-size: 0.82rem; color: #64748B; margin-bottom: 16px; }
+    @media print {
+      .lang-bar, .back-btn, .pdf-btn { display: none !important; }
+      body { background: white; }
+      .sec { box-shadow: none; border: 1px solid #E2E8F0; break-inside: avoid; }
+    }
+    [data-lang]:not(.show) { display: none !important; }
+  </style>
+</head>
+<body>
+  <div class="manual-wrap">
+
+    <!-- 言語バー -->
+    <div class="lang-bar">
+      <span>Language:</span>
+      <button class="lang-btn active" onclick="switchLang('ja')">日本語</button>
+      <button class="lang-btn" onclick="switchLang('vi')">Tiếng Việt</button>
+      <button class="lang-btn" onclick="switchLang('zh')">中文</button>
+      <button class="lang-btn" onclick="switchLang('id')">Indonesia</button>
+      <button class="pdf-btn" onclick="window.print()">📄 PDF保存 / Save PDF</button>
+    </div>
+
+    <!-- 戻るボタン -->
+    <a class="back-btn" href="javascript:history.back()">← 戻る / Back</a>
+
+    <!-- ═══════════════════════════════════════ 日本語 ═══ -->
+    <div data-lang="ja" class="show">
+      <div class="page-title">🕐 勤怠管理システム 使用方法</div>
+      <div class="page-sub">従業員向けガイド</div>
+
+      <div class="sec">
+        <h2>🔑 ログイン</h2>
+        <div class="step"><div class="step-num">1</div><div class="step-text">ブラウザでシステムのURLにアクセスする</div></div>
+        <div class="step"><div class="step-num">2</div><div class="step-text">社員ID と パスワード（またはPIN）を入力して「ログイン」を押す</div></div>
+        <div class="note">初回パスワードは管理者から受け取ったPINを使用してください</div>
+      </div>
+
+      <div class="sec">
+        <h2>✅ 出勤打刻</h2>
+        <div class="step"><div class="step-num">1</div><div class="step-text">画面上部の打刻カードを確認する</div></div>
+        <div class="step"><div class="step-num">2</div><div class="step-text">「<strong>出勤</strong>」ボタンを押す</div></div>
+        <div class="step"><div class="step-num">3</div><div class="step-text">ブラウザが位置情報を求めたら「<strong>許可</strong>」を選ぶ（GPS確認のため）</div></div>
+        <div class="step"><div class="step-num">4</div><div class="step-text">「出勤中 🟢」と表示されたら完了</div></div>
+        <div class="note">会社から離れすぎている場合はエラーになります。<br>出張の場合は「✈️ 出張中」にチェックを入れてから打刻してください。</div>
+      </div>
+
+      <div class="sec">
+        <h2>🔴 退勤打刻</h2>
+        <div class="step"><div class="step-num">1</div><div class="step-text">「<strong>退勤</strong>」ボタンを押す</div></div>
+        <div class="step"><div class="step-num">2</div><div class="step-text">「退勤済 ✅」と表示されたら完了</div></div>
+      </div>
+
+      <div class="sec">
+        <h2>🚗 外出・帰社</h2>
+        <p>業務中に外出する場合は必ず記録してください。外出時間は実働時間から除外されます。</p>
+        <div class="step"><div class="step-num">1</div><div class="step-text">「<strong>🚗 外出</strong>」ボタンを押す → 理由を入力（任意）</div></div>
+        <div class="step"><div class="step-num">2</div><div class="step-text">戻ったら「<strong>🏢 帰社</strong>」ボタンを押す</div></div>
+      </div>
+
+      <div class="sec">
+        <h2>🏖️ 有給申請</h2>
+        <div class="step"><div class="step-num">1</div><div class="step-text">「有給申請」タブを開く</div></div>
+        <div class="step"><div class="step-num">2</div><div class="step-text">開始日・終了日・取得日数・理由を入力して「申請する」を押す</div></div>
+        <div class="step"><div class="step-num">3</div><div class="step-text">管理者が承認すると有給残数に反映される</div></div>
+      </div>
+
+      <div class="sec">
+        <h2>✏️ 打刻修正申請</h2>
+        <p>打刻忘れや間違いがあった場合に申請します。</p>
+        <div class="step"><div class="step-num">1</div><div class="step-text">「打刻修正申請」タブを開く</div></div>
+        <div class="step"><div class="step-num">2</div><div class="step-text">対象日・修正後の出退勤時刻・理由を入力して「申請する」を押す</div></div>
+        <div class="step"><div class="step-num">3</div><div class="step-text">管理者が承認すると打刻が修正される</div></div>
+      </div>
+
+      <div class="sec">
+        <h2>📋 勤務履歴の確認</h2>
+        <div class="step"><div class="step-num">1</div><div class="step-text">「勤務履歴」タブを開く</div></div>
+        <div class="step"><div class="step-num">2</div><div class="step-text">年・月を選択して「表示」を押す</div></div>
+        <p>遅刻・早退は自動でバッジ表示されます。</p>
+      </div>
+
+      <div class="sec">
+        <h2>⚠️ よくある注意事項</h2>
+        <ul>
+          <li>出勤・退勤の打刻は<strong>必ず毎日</strong>行ってください</li>
+          <li>外出時は必ず「外出」ボタンを押してから出発してください</li>
+          <li>打刻忘れに気づいたら、すぐに管理者に連絡して修正申請してください</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════ TIẾNG VIỆT ═══ -->
+    <div data-lang="vi">
+      <div class="page-title">🕐 Hướng dẫn sử dụng hệ thống chấm công</div>
+      <div class="page-sub">Dành cho nhân viên</div>
+
+      <div class="sec">
+        <h2>🔑 Đăng nhập</h2>
+        <div class="step"><div class="step-num">1</div><div class="step-text">Truy cập URL của hệ thống trên trình duyệt</div></div>
+        <div class="step"><div class="step-num">2</div><div class="step-text">Nhập <strong>Mã nhân viên</strong> và <strong>Mật khẩu (PIN)</strong>, nhấn "Đăng nhập"</div></div>
+        <div class="note">Mật khẩu lần đầu là PIN do quản lý cung cấp.</div>
+      </div>
+
+      <div class="sec">
+        <h2>✅ Chấm công vào ca</h2>
+        <div class="step"><div class="step-num">1</div><div class="step-text">Xem thẻ chấm công ở phần trên màn hình</div></div>
+        <div class="step"><div class="step-num">2</div><div class="step-text">Nhấn nút "<strong>Vào ca</strong>"</div></div>
+        <div class="step"><div class="step-num">3</div><div class="step-text">Nếu trình duyệt yêu cầu vị trí, chọn "<strong>Cho phép</strong>"</div></div>
+        <div class="step"><div class="step-num">4</div><div class="step-text">Hiển thị "Đang làm việc 🟢" là thành công</div></div>
+        <div class="note">Nếu bạn ở quá xa công ty, sẽ có lỗi.<br>Khi đi công tác, hãy bật "<strong>✈️ Đang công tác</strong>" trước khi chấm công.</div>
+      </div>
+
+      <div class="sec">
+        <h2>🔴 Chấm công ra ca</h2>
+        <div class="step"><div class="step-num">1</div><div class="step-text">Nhấn nút "<strong>Ra ca</strong>"</div></div>
+        <div class="step"><div class="step-num">2</div><div class="step-text">Hiển thị "Đã ra ca ✅" là thành công</div></div>
+      </div>
+
+      <div class="sec">
+        <h2>🚗 Ra ngoài / Trở về</h2>
+        <p>Khi ra ngoài trong giờ làm việc, hãy ghi lại để thời gian ra ngoài được trừ khỏi giờ làm việc thực tế.</p>
+        <div class="step"><div class="step-num">1</div><div class="step-text">Nhấn "<strong>🚗 Ra ngoài</strong>" → Nhập lý do (tùy chọn)</div></div>
+        <div class="step"><div class="step-num">2</div><div class="step-text">Khi về, nhấn "<strong>🏢 Trở về</strong>"</div></div>
+      </div>
+
+      <div class="sec">
+        <h2>🏖️ Xin nghỉ phép</h2>
+        <div class="step"><div class="step-num">1</div><div class="step-text">Mở tab "<strong>Xin nghỉ phép</strong>"</div></div>
+        <div class="step"><div class="step-num">2</div><div class="step-text">Nhập ngày bắt đầu, ngày kết thúc, số ngày, lý do → nhấn "<strong>Gửi yêu cầu</strong>"</div></div>
+        <div class="step"><div class="step-num">3</div><div class="step-text">Sau khi quản lý phê duyệt, số ngày phép sẽ được cập nhật</div></div>
+      </div>
+
+      <div class="sec">
+        <h2>✏️ Yêu cầu sửa chấm công</h2>
+        <p>Khi quên chấm công hoặc chấm sai, hãy gửi yêu cầu sửa.</p>
+        <div class="step"><div class="step-num">1</div><div class="step-text">Mở tab "<strong>Sửa chấm công</strong>"</div></div>
+        <div class="step"><div class="step-num">2</div><div class="step-text">Nhập ngày cần sửa, giờ vào/ra (sau sửa), lý do → nhấn "<strong>Gửi yêu cầu</strong>"</div></div>
+        <div class="step"><div class="step-num">3</div><div class="step-text">Quản lý phê duyệt → chấm công được cập nhật</div></div>
+      </div>
+
+      <div class="sec">
+        <h2>📋 Xem lịch sử chấm công</h2>
+        <div class="step"><div class="step-num">1</div><div class="step-text">Mở tab "<strong>Lịch sử</strong>"</div></div>
+        <div class="step"><div class="step-num">2</div><div class="step-text">Chọn năm, tháng → nhấn "<strong>Hiển thị</strong>"</div></div>
+        <p>Đi muộn và về sớm sẽ được hiển thị tự động.</p>
+      </div>
+
+      <div class="sec">
+        <h2>⚠️ Lưu ý quan trọng</h2>
+        <ul>
+          <li>Hãy chấm công <strong>mỗi ngày đầy đủ</strong> (vào ca và ra ca)</li>
+          <li>Khi ra ngoài, nhớ nhấn nút "🚗 Ra ngoài" trước khi đi</li>
+          <li>Nếu quên chấm công, hãy liên hệ quản lý ngay để yêu cầu sửa</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════ 中文 ═══ -->
+    <div data-lang="zh">
+      <div class="page-title">🕐 考勤管理系统使用说明</div>
+      <div class="page-sub">员工版使用指南</div>
+
+      <div class="sec">
+        <h2>🔑 登录</h2>
+        <div class="step"><div class="step-num">1</div><div class="step-text">在浏览器中访问系统URL</div></div>
+        <div class="step"><div class="step-num">2</div><div class="step-text">输入<strong>员工编号</strong>和<strong>密码（PIN）</strong>，点击"登录"</div></div>
+        <div class="note">初始密码是管理员提供的PIN码。</div>
+      </div>
+
+      <div class="sec">
+        <h2>✅ 上班打卡</h2>
+        <div class="step"><div class="step-num">1</div><div class="step-text">查看画面上方的打卡卡片</div></div>
+        <div class="step"><div class="step-num">2</div><div class="step-text">点击"<strong>上班打卡</strong>"按钮</div></div>
+        <div class="step"><div class="step-num">3</div><div class="step-text">浏览器请求位置信息时，选择"<strong>允许</strong>"</div></div>
+        <div class="step"><div class="step-num">4</div><div class="step-text">显示"上班中 🟢"即为成功</div></div>
+        <div class="note">如果距离公司太远，将会出现错误。<br>出差时，请先勾选"<strong>✈️ 出差中</strong>"再打卡。</div>
+      </div>
+
+      <div class="sec">
+        <h2>🔴 下班打卡</h2>
+        <div class="step"><div class="step-num">1</div><div class="step-text">点击"<strong>下班打卡</strong>"按钮</div></div>
+        <div class="step"><div class="step-num">2</div><div class="step-text">显示"已下班 ✅"即为成功</div></div>
+      </div>
+
+      <div class="sec">
+        <h2>🚗 外出 / 返回</h2>
+        <p>工作时间内外出时，请务必记录。外出时间将从实际工作时间中扣除。</p>
+        <div class="step"><div class="step-num">1</div><div class="step-text">点击"<strong>🚗 外出</strong>" → 输入原因（可选）</div></div>
+        <div class="step"><div class="step-num">2</div><div class="step-text">回来后点击"<strong>🏢 返回</strong>"</div></div>
+      </div>
+
+      <div class="sec">
+        <h2>🏖️ 申请休假</h2>
+        <div class="step"><div class="step-num">1</div><div class="step-text">打开"<strong>申请假期</strong>"标签页</div></div>
+        <div class="step"><div class="step-num">2</div><div class="step-text">输入开始日期、结束日期、天数、理由 → 点击"<strong>提交申请</strong>"</div></div>
+        <div class="step"><div class="step-num">3</div><div class="step-text">管理员批准后，剩余假期将自动更新</div></div>
+      </div>
+
+      <div class="sec">
+        <h2>✏️ 申请修正打卡</h2>
+        <p>当忘记打卡或打卡错误时，可提交修正申请。</p>
+        <div class="step"><div class="step-num">1</div><div class="step-text">打开"<strong>申请修正打卡</strong>"标签页</div></div>
+        <div class="step"><div class="step-num">2</div><div class="step-text">输入日期、修正后的上下班时间、理由 → 点击"<strong>提交申请</strong>"</div></div>
+        <div class="step"><div class="step-num">3</div><div class="step-text">管理员批准后，打卡记录将被更新</div></div>
+      </div>
+
+      <div class="sec">
+        <h2>📋 查看考勤记录</h2>
+        <div class="step"><div class="step-num">1</div><div class="step-text">打开"<strong>考勤记录</strong>"标签页</div></div>
+        <div class="step"><div class="step-num">2</div><div class="step-text">选择年份和月份 → 点击"<strong>显示</strong>"</div></div>
+        <p>迟到和早退会自动标记显示。</p>
+      </div>
+
+      <div class="sec">
+        <h2>⚠️ 注意事项</h2>
+        <ul>
+          <li>请<strong>每天</strong>按时打上班卡和下班卡</li>
+          <li>外出时请务必先按"🚗 外出"按钮</li>
+          <li>发现忘记打卡后，请立即联系管理员申请修正</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════ INDONESIA ═══ -->
+    <div data-lang="id">
+      <div class="page-title">🕐 Panduan Penggunaan Sistem Absensi</div>
+      <div class="page-sub">Panduan untuk Karyawan</div>
+
+      <div class="sec">
+        <h2>🔑 Login</h2>
+        <div class="step"><div class="step-num">1</div><div class="step-text">Buka URL sistem di browser</div></div>
+        <div class="step"><div class="step-num">2</div><div class="step-text">Masukkan <strong>ID Karyawan</strong> dan <strong>Password (PIN)</strong>, klik "Login"</div></div>
+        <div class="note">Password pertama kali adalah PIN yang diberikan oleh manajer.</div>
+      </div>
+
+      <div class="sec">
+        <h2>✅ Absen Masuk</h2>
+        <div class="step"><div class="step-num">1</div><div class="step-text">Lihat kartu absen di bagian atas layar</div></div>
+        <div class="step"><div class="step-num">2</div><div class="step-text">Tekan tombol "<strong>Absen Masuk</strong>"</div></div>
+        <div class="step"><div class="step-num">3</div><div class="step-text">Jika browser meminta izin lokasi, pilih "<strong>Izinkan</strong>"</div></div>
+        <div class="step"><div class="step-num">4</div><div class="step-text">Muncul "Sedang bekerja 🟢" berarti berhasil</div></div>
+        <div class="note">Jika terlalu jauh dari kantor, akan muncul error.<br>Saat perjalanan dinas, aktifkan "<strong>✈️ Perjalanan Dinas</strong>" sebelum absen.</div>
+      </div>
+
+      <div class="sec">
+        <h2>🔴 Absen Pulang</h2>
+        <div class="step"><div class="step-num">1</div><div class="step-text">Tekan tombol "<strong>Absen Pulang</strong>"</div></div>
+        <div class="step"><div class="step-num">2</div><div class="step-text">Muncul "Sudah pulang ✅" berarti berhasil</div></div>
+      </div>
+
+      <div class="sec">
+        <h2>🚗 Keluar / Kembali</h2>
+        <p>Saat keluar kantor di jam kerja, wajib dicatat. Waktu keluar akan dikurangi dari jam kerja.</p>
+        <div class="step"><div class="step-num">1</div><div class="step-text">Tekan "<strong>🚗 Keluar</strong>" → Masukkan alasan (opsional)</div></div>
+        <div class="step"><div class="step-num">2</div><div class="step-text">Saat kembali, tekan "<strong>🏢 Kembali</strong>"</div></div>
+      </div>
+
+      <div class="sec">
+        <h2>🏖️ Ajukan Cuti</h2>
+        <div class="step"><div class="step-num">1</div><div class="step-text">Buka tab "<strong>Ajukan Cuti</strong>"</div></div>
+        <div class="step"><div class="step-num">2</div><div class="step-text">Isi tanggal mulai, tanggal selesai, jumlah hari, alasan → klik "<strong>Kirim Permintaan</strong>"</div></div>
+        <div class="step"><div class="step-num">3</div><div class="step-text">Setelah disetujui manajer, sisa cuti akan diperbarui</div></div>
+      </div>
+
+      <div class="sec">
+        <h2>✏️ Ajukan Koreksi Absen</h2>
+        <p>Jika lupa absen atau absen salah, ajukan permohonan koreksi.</p>
+        <div class="step"><div class="step-num">1</div><div class="step-text">Buka tab "<strong>Koreksi Absen</strong>"</div></div>
+        <div class="step"><div class="step-num">2</div><div class="step-text">Isi tanggal, jam masuk/pulang (setelah koreksi), alasan → klik "<strong>Kirim Permintaan</strong>"</div></div>
+        <div class="step"><div class="step-num">3</div><div class="step-text">Setelah disetujui manajer, data absen diperbarui</div></div>
+      </div>
+
+      <div class="sec">
+        <h2>📋 Lihat Riwayat Absen</h2>
+        <div class="step"><div class="step-num">1</div><div class="step-text">Buka tab "<strong>Riwayat Absen</strong>"</div></div>
+        <div class="step"><div class="step-num">2</div><div class="step-text">Pilih tahun dan bulan → klik "<strong>Tampilkan</strong>"</div></div>
+        <p>Keterlambatan dan pulang awal akan otomatis ditandai.</p>
+      </div>
+
+      <div class="sec">
+        <h2>⚠️ Perhatian Penting</h2>
+        <ul>
+          <li>Harap absen masuk dan pulang <strong>setiap hari</strong></li>
+          <li>Saat keluar kantor, wajib tekan tombol "🚗 Keluar" terlebih dahulu</li>
+          <li>Jika lupa absen, segera hubungi manajer untuk mengajukan koreksi</li>
+        </ul>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    /* 言語切替 */
+    const stored = localStorage.getItem('kintai_lang') || 'ja';
+    let activeLang = ['ja','vi','zh','id'].includes(stored) ? stored : 'ja';
+
+    function switchLang(lang) {
+      activeLang = lang;
+      localStorage.setItem('kintai_lang', lang);
+      document.querySelectorAll('[data-lang]').forEach(el => {
+        el.classList.toggle('show', el.dataset.lang === lang);
+      });
+      document.querySelectorAll('.lang-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.textContent.trim() === {
+          ja:'日本語', vi:'Tiếng Việt', zh:'中文', id:'Indonesia'
+        }[lang]);
+      });
+      document.documentElement.lang = lang === 'zh' ? 'zh-CN' : lang;
+    }
+    switchLang(activeLang);
+  </script>
+</body>
+</html>

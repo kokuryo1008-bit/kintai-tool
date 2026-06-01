@@ -91,22 +91,22 @@ async function loadTodayStatus() {
 
     const extBtns = document.getElementById('external-buttons');
     if (!d.clock_in) {
-      status.textContent = '未出勤';
+      status.textContent = _t('status_not_working');
       btnIn.disabled = false; btnOut.disabled = true;
       extBtns.style.display = 'none';
     } else if (!d.clock_out) {
-      status.textContent = '出勤中 🟢';
+      status.textContent = _t('status_working');
       btnIn.disabled = true; btnOut.disabled = false;
       extBtns.style.display = 'flex';
       document.getElementById('btn-go-out').disabled = false;
       await loadExternalStatus();
     } else {
-      status.textContent = '退勤済 ✅';
+      status.textContent = _t('status_done');
       btnIn.disabled = true; btnOut.disabled = true;
       extBtns.style.display = 'none';
     }
   } catch(e) {
-    document.getElementById('clock-status').textContent = '読み込みエラー';
+    document.getElementById('clock-status').textContent = _t('status_error');
   }
 }
 loadTodayStatus();
@@ -119,7 +119,7 @@ function updateTripMode() {
   const trip = isTrip();
   const card = document.querySelector('.clock-card');
   card.style.background = trip ? 'linear-gradient(135deg,#1E3A5F,#0369A1)' : '';
-  document.getElementById('clock-status').textContent = trip ? '✈️ 出張モード（GPS解除）' : '読み込み中...';
+  document.getElementById('clock-status').textContent = trip ? _t('status_trip') : _t('status_loading');
   if (trip) loadTodayStatus();
 }
 
@@ -160,9 +160,9 @@ async function goOut() {
     const res = await api('/api/attendance/go-out', 'POST', { note: note || null });
     const d = await res.json();
     if (!res.ok) { alert(d.detail || 'エラー'); return; }
-    document.getElementById('clock-status').textContent = '外出中 🚗';
+    document.getElementById('clock-status').textContent = _t('status_out');
     await loadExternalStatus();
-  } catch(e) { alert('通信エラー'); }
+  } catch(e) { alert(_t('alert_comm_error')); }
 }
 
 async function returnFromOut() {
@@ -170,15 +170,15 @@ async function returnFromOut() {
     const res = await api('/api/attendance/return', 'POST');
     const d = await res.json();
     if (!res.ok) { alert(d.detail || 'エラー'); return; }
-    document.getElementById('clock-status').textContent = '出勤中 🟢';
+    document.getElementById('clock-status').textContent = _t('status_working');
     await loadExternalStatus();
-  } catch(e) { alert('通信エラー'); }
+  } catch(e) { alert(_t('alert_comm_error')); }
 }
 
 // ── 出勤 ──
 async function clockIn() {
   const btn = document.getElementById('btn-in');
-  btn.disabled = true; btn.textContent = '取得中...';
+  btn.disabled = true; btn.textContent = _t('btn_getting');
   const trip = isTrip();
   const pos = trip ? null : await getGPS();
   try {
@@ -186,9 +186,9 @@ async function clockIn() {
     if (pos) { body.lat = pos.lat; body.lon = pos.lon; }
     const res = await api('/api/attendance/clock-in', 'POST', body);
     const d = await res.json();
-    if (!res.ok) { alert(d.detail || 'エラーが発生しました'); btn.disabled = false; btn.textContent = '出勤'; return; }
+    if (!res.ok) { alert(d.detail || 'エラーが発生しました'); btn.disabled = false; btn.textContent = _t('btn_clock_in'); return; }
     await loadTodayStatus();
-  } catch(e) { alert('通信エラーが発生しました'); btn.disabled = false; btn.textContent = '出勤'; }
+  } catch(e) { alert(_t('alert_comm_error')); btn.disabled = false; btn.textContent = _t('btn_clock_in'); }
 }
 
 // ── 退勤 ──
@@ -202,9 +202,9 @@ async function clockOut() {
     if (pos) { body.lat = pos.lat; body.lon = pos.lon; }
     const res = await api('/api/attendance/clock-out', 'POST', body);
     const d = await res.json();
-    if (!res.ok) { alert(d.detail || 'エラーが発生しました'); btn.disabled = false; btn.textContent = '退勤'; return; }
+    if (!res.ok) { alert(d.detail || 'エラーが発生しました'); btn.disabled = false; btn.textContent = _t('btn_clock_out'); return; }
     await loadTodayStatus();
-  } catch(e) { alert('通信エラーが発生しました'); btn.disabled = false; btn.textContent = '退勤'; }
+  } catch(e) { alert(_t('alert_comm_error')); btn.disabled = false; btn.textContent = _t('btn_clock_out'); }
 }
 
 // ── 勤務履歴 ──
@@ -225,12 +225,12 @@ async function loadHistory() {
     // 残業累計の警告レベル
     const otH = totalOt / 60;
     const otColor = otH >= 80 ? 'var(--danger)' : otH >= 45 ? 'var(--warning)' : 'inherit';
-    const otWarn  = otH >= 80 ? ' ⚠️ 過労注意' : otH >= 45 ? ' ⚠️ 要注意' : '';
+    const otWarn  = otH >= 80 ? _t('warn_80h') : otH >= 45 ? _t('warn_45h') : '';
 
     records.forEach(r => {
       const tr = document.createElement('tr');
-      const lateBadge  = r.is_late  ? '<span style="background:#FEE2E2;color:#DC2626;font-size:0.68rem;padding:1px 5px;border-radius:4px;margin-left:3px">遅刻</span>' : '';
-      const earlyBadge = r.is_early ? '<span style="background:#FEF9C3;color:#B45309;font-size:0.68rem;padding:1px 5px;border-radius:4px;margin-left:3px">早退</span>' : '';
+      const lateBadge  = r.is_late  ? `<span style="background:#FEE2E2;color:#DC2626;font-size:0.68rem;padding:1px 5px;border-radius:4px;margin-left:3px">${_t('badge_late')}</span>` : '';
+      const earlyBadge = r.is_early ? `<span style="background:#FEF9C3;color:#B45309;font-size:0.68rem;padding:1px 5px;border-radius:4px;margin-left:3px">${_t('badge_early')}</span>` : '';
       tr.innerHTML = `
         <td>${r.date.slice(5).replace('-','/')}</td>
         <td>${r.clock_in ? r.clock_in.slice(0,5) : '--'}${lateBadge}</td>
@@ -272,7 +272,7 @@ async function loadLeaveInfo() {
       `;
       el.appendChild(div);
     });
-    if (!d2.requests?.length) el.innerHTML = '<div style="color:var(--text-muted);font-size:0.85rem">申請履歴はありません</div>';
+    if (!d2.requests?.length) el.innerHTML = `<div style="color:var(--text-muted);font-size:0.85rem">${_t('no_history')}</div>`;
   } catch(e) {}
 }
 
@@ -281,12 +281,12 @@ async function submitLeave() {
   const end = document.getElementById('leave-end').value;
   const days = document.getElementById('leave-days').value;
   const reason = document.getElementById('leave-reason').value;
-  if (!start || !end || !days) { alert('開始日・終了日・取得日数を入力してください'); return; }
+  if (!start || !end || !days) { alert(_t('alert_leave_input')); return; }
   try {
     const res = await api('/api/leave/request', 'POST', { start_date: start, end_date: end, days: parseFloat(days), reason });
     const d = await res.json();
     if (!res.ok) { alert(d.detail || 'エラーが発生しました'); return; }
-    alert('申請しました');
+    alert(_t('alert_applied'));
     document.getElementById('leave-start').value = '';
     document.getElementById('leave-end').value = '';
     document.getElementById('leave-days').value = '';
@@ -1058,7 +1058,14 @@ function fmtMin(min) {
 }
 
 function statusLabel(s) {
-  return { pending:'申請中', approved:'承認済', rejected:'却下' }[s] || s;
+  return _statusLabel(s);  // i18n.js の _statusLabel を使用
+}
+
+/* 言語切替後に動的テキストを再描画するフック */
+function _refreshDynamicText() {
+  // 表示中のステータスを再描画（i18n.jsから呼ばれる）
+  loadTodayStatus();
+  loadExternalStatus().catch(() => {});
 }
 
 function statusBadge(s) {
