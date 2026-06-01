@@ -98,16 +98,16 @@
         <div style="display:flex;gap:8px;margin-bottom:12px;align-items:center;flex-wrap:wrap">
           <!-- 表示モード切替 -->
           <div style="display:flex;border:1px solid var(--border);border-radius:6px;overflow:hidden;flex-shrink:0">
-            <button id="shift-btn-week" onclick="setShiftView('weekly')" style="padding:7px 14px;border:none;background:var(--primary);color:white;cursor:pointer;font-weight:700;font-size:0.82rem">今日から7日</button>
-            <button id="shift-btn-month" onclick="setShiftView('monthly')" style="padding:7px 14px;border:none;background:white;color:var(--text-muted);cursor:pointer;font-weight:700;font-size:0.82rem">月表示</button>
+            <button id="shift-btn-week" onclick="setShiftView('weekly')" style="padding:7px 14px;border:none;background:var(--primary);color:white;cursor:pointer;font-weight:700;font-size:0.82rem" data-i18n="btn_week_view">今日から7日</button>
+            <button id="shift-btn-month" onclick="setShiftView('monthly')" style="padding:7px 14px;border:none;background:white;color:var(--text-muted);cursor:pointer;font-weight:700;font-size:0.82rem" data-i18n="btn_month_view">月表示</button>
           </div>
           <!-- 月表示コントロール（月モード時のみ） -->
           <div id="shift-monthly-ctrl" style="display:none;gap:8px;align-items:center">
             <select id="shift-emp-year" style="width:auto"></select>
             <select id="shift-emp-month" style="width:auto"></select>
-            <button class="btn-outline btn-sm" onclick="loadShiftTable()">表示</button>
+            <button class="btn-outline btn-sm" onclick="loadShiftTable()" data-i18n="btn_show">表示</button>
           </div>
-          <button class="btn-outline btn-sm" onclick="exportShiftExcel()" style="margin-left:auto;border-color:var(--accent);color:var(--accent)">📥 Excel出力</button>
+          <button class="btn-outline btn-sm" onclick="exportShiftExcel()" style="margin-left:auto;border-color:var(--accent);color:var(--accent)" data-i18n="btn_excel">📥 Excel出力</button>
         </div>
         <div id="shift-status" style="text-align:center;color:var(--text-muted);padding:20px;font-size:0.88rem"></div>
         <div style="overflow-x:auto">
@@ -123,15 +123,15 @@
         <div style="display:flex;gap:8px;margin-bottom:12px;align-items:center">
           <select id="hist-year" style="width:auto"></select>
           <select id="hist-month" style="width:auto"></select>
-          <button class="btn-outline btn-sm" onclick="loadHistory()">表示</button>
+          <button class="btn-outline btn-sm" onclick="loadHistory()" data-i18n="btn_show">表示</button>
         </div>
         <div style="background:#EFF6FF;border-radius:8px;padding:10px 14px;margin-bottom:6px;font-size:0.85rem;display:flex;gap:20px;flex-wrap:wrap">
-          <span>勤務: <strong id="sum-work">--</strong></span>
-          <span>残業: <strong id="sum-ot">--</strong></span>
+          <span><span data-i18n="summary_work">勤務</span>: <strong id="sum-work">--</strong></span>
+          <span><span data-i18n="summary_ot">残業</span>: <strong id="sum-ot">--</strong></span>
         </div>
         <div class="table-wrap">
           <table>
-            <thead><tr><th>日付</th><th>出勤</th><th>退勤</th><th>勤務</th><th>残業</th></tr></thead>
+            <thead><tr><th data-i18n="col_date">日付</th><th data-i18n="col_clock_in_h">出勤</th><th data-i18n="col_clock_out_h">退勤</th><th data-i18n="col_work_h">勤務</th><th data-i18n="col_ot_h">残業</th></tr></thead>
             <tbody id="hist-body"></tbody>
           </table>
         </div>
@@ -181,7 +181,7 @@
 
       <!-- 残業申請 -->
       <div id="tab-overtime" class="hidden">
-        <div style="background:#FEF3C7;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:0.82rem;color:#92400E">
+        <div style="background:#FEF3C7;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:0.82rem;color:#92400E" data-i18n="ot_note">
           残業申請は各部署の管理職が行います。申請状況の確認のみ可能です。
         </div>
         <div style="display:flex;gap:8px;margin-bottom:12px;align-items:center;flex-wrap:wrap">
@@ -294,7 +294,7 @@
   </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-  <script src="/static/i18n.js?v=1"></script>
-  <script src="/static/employee.js?v=10"></script>
+  <script src="/static/i18n.js?v=2"></script>
+  <script src="/static/employee.js?v=11"></script>
 </body>
 </html>

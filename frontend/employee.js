@@ -407,7 +407,7 @@ function setShiftView(mode) {
 // ── 今日から7日間シフト ──
 async function loadWeeklyShifts() {
   const status = document.getElementById('shift-status');
-  status.textContent = '読み込み中...';
+  status.textContent = _t('status_loading');
   document.getElementById('shift-emp-thead').innerHTML = '';
   document.getElementById('shift-emp-tbody').innerHTML = '';
 
@@ -432,19 +432,19 @@ async function loadWeeklyShifts() {
     currentShiftData = allShifts;
     renderWeeklyShiftTable(allShifts, dates);
   } catch(e) {
-    status.textContent = '通信エラーが発生しました。';
+    status.textContent = _t('alert_comm_error');
   }
 }
 
 function renderWeeklyShiftTable(shifts, dates) {
   const thead  = document.getElementById('shift-emp-thead');
   const tbody  = document.getElementById('shift-emp-tbody');
-  const DOW    = ['日','月','火','水','木','金','土'];
+  const DOW    = _t('dow');
   const todayStr = new Date().toISOString().slice(0, 10);
   const dateStrs = dates.map(d => d.toISOString().slice(0, 10));
 
   // ヘッダー
-  let headHtml = '<tr><th style="position:sticky;left:0;background:#F8FAFC;z-index:1;padding:6px 10px;border:1px solid #E2E8F0;white-space:nowrap">氏名</th>';
+  let headHtml = `<tr><th style="position:sticky;left:0;background:#F8FAFC;z-index:1;padding:6px 10px;border:1px solid #E2E8F0;white-space:nowrap">${_t('col_name')}</th>`;
   dates.forEach(dt => {
     const ds  = dt.toISOString().slice(0, 10);
     const dow = dt.getDay();
@@ -454,7 +454,7 @@ function renderWeeklyShiftTable(shifts, dates) {
     headHtml += `<th style="min-width:62px;text-align:center;padding:4px 2px;border:1px solid #E2E8F0;${bg}color:${tc}">
       ${dt.getMonth()+1}/${dt.getDate()}<br>
       <span style="font-size:0.68rem">${DOW[dow]}</span>
-      ${isToday ? '<br><span style="font-size:0.6rem;background:var(--primary);color:white;border-radius:3px;padding:0 3px">今日</span>' : ''}
+      ${isToday ? `<br><span style="font-size:0.6rem;background:var(--primary);color:white;border-radius:3px;padding:0 3px">${_t('today_label')}</span>` : ''}
     </th>`;
   });
   headHtml += '</tr>';
@@ -468,7 +468,7 @@ function renderWeeklyShiftTable(shifts, dates) {
   });
 
   if (!Object.keys(empMap).length) {
-    tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;color:#94A3B8;padding:24px">この期間のシフトは登録されていません</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;color:#94A3B8;padding:24px">${_t('shift_no_data')}</td></tr>`;
     return;
   }
 
@@ -497,29 +497,29 @@ async function loadShiftTable() {
   const year = document.getElementById('shift-emp-year').value;
   const month = document.getElementById('shift-emp-month').value;
   const status = document.getElementById('shift-status');
-  status.textContent = '読み込み中...';
+  status.textContent = _t('status_loading');
   document.getElementById('shift-emp-thead').innerHTML = '';
   document.getElementById('shift-emp-tbody').innerHTML = '';
   try {
     const res = await api(`/api/shifts?year=${year}&month=${month}`);
     const d = await res.json();
-    if (!res.ok) { status.textContent = 'エラー: ' + (d.detail || '取得失敗'); return; }
+    if (!res.ok) { status.textContent = _t('alert_comm_error'); return; }
     status.textContent = '';
     currentShiftData = d.shifts || [];
     renderShiftTable(currentShiftData, parseInt(year), parseInt(month));
   } catch(e) {
-    status.textContent = '通信エラーが発生しました。';
+    status.textContent = _t('alert_comm_error');
   }
 }
 
 function exportShiftExcel() {
-  if (!currentShiftData.length) { alert('シフトデータがありません。先に「表示」ボタンを押してください。'); return; }
+  if (!currentShiftData.length) { alert(_t('alert_no_shift')); return; }
   const year = parseInt(document.getElementById('shift-emp-year').value);
   const month = parseInt(document.getElementById('shift-emp-month').value);
   const daysInMonth = new Date(year, month, 0).getDate();
-  const DOW = ['日','月','火','水','木','金','土'];
+  const DOW = _t('dow');
 
-  const header = ['氏名', '部署'];
+  const header = [_t('col_name'), _t('col_dept')];
   for (let d = 1; d <= daysInMonth; d++) {
     const dt = new Date(year, month - 1, d);
     header.push(`${d}(${DOW[dt.getDay()]})`);
@@ -554,10 +554,10 @@ function renderShiftTable(shifts, year, month) {
   const tbody = document.getElementById('shift-emp-tbody');
 
   const daysInMonth = new Date(year, month, 0).getDate();
-  const DOW = ['日','月','火','水','木','金','土'];
+  const DOW = _t('dow');
 
   // 日付ヘッダー
-  let headHtml = '<tr><th style="position:sticky;left:0;background:#F8FAFC;z-index:1;white-space:nowrap;padding:6px 10px;border:1px solid #E2E8F0">氏名</th>';
+  let headHtml = `<tr><th style="position:sticky;left:0;background:#F8FAFC;z-index:1;white-space:nowrap;padding:6px 10px;border:1px solid #E2E8F0">${_t('col_name')}</th>`;
   for (let d = 1; d <= daysInMonth; d++) {
     const dt = new Date(year, month - 1, d);
     const dow = dt.getDay();
@@ -576,7 +576,7 @@ function renderShiftTable(shifts, year, month) {
   });
 
   if (!Object.keys(empMap).length) {
-    tbody.innerHTML = `<tr><td colspan="${daysInMonth + 1}" style="text-align:center;color:#94A3B8;padding:20px">シフトが登録されていません</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="${daysInMonth + 1}" style="text-align:center;color:#94A3B8;padding:20px">${_t('shift_no_data')}</td></tr>`;
     return;
   }
 
