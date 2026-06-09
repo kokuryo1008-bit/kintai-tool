@@ -7,42 +7,93 @@
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
   <title>勤怠管理 | 管理画面</title>
-  <link rel="stylesheet" href="/static/common.css">
+  <link rel="stylesheet" href="/static/common.css?v=2">
 </head>
 <body>
   <nav class="navbar">
-    <div class="navbar-brand">🕐 勤怠管理 <span style="font-size:0.75rem;opacity:.7;font-weight:400">管理画面</span></div>
+    <div class="navbar-brand">
+      <span class="brand-mark"><svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15.5 14"/></svg></span>
+      Kintai
+      <span class="brand-sub">管理</span>
+    </div>
     <div class="navbar-user">
-      <a href="/manual" target="_blank" style="padding:4px 12px;border-radius:12px;border:1px solid #CBD5E1;background:white;color:#475569;font-size:0.78rem;font-weight:600;text-decoration:none">📖 使い方</a>
+      <a href="/manual" target="_blank" class="nav-link">
+        <svg class="icon" viewBox="0 0 24 24" style="width:14px;height:14px"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg>
+        使い方
+      </a>
       <span id="user-name"></span>
-      <button class="btn-logout" onclick="logout()">ログアウト</button>
+      <button class="btn-logout" onclick="logout()">
+        <svg class="icon" viewBox="0 0 24 24" style="width:14px;height:14px"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        ログアウト
+      </button>
     </div>
   </nav>
 
   <div class="admin-layout">
     <!-- サイドバー -->
     <div class="sidebar">
-      <div class="sidebar-item active" onclick="showSection('dashboard')" id="nav-dashboard">📊 ダッシュボード</div>
-      <div class="sidebar-item" onclick="showSection('employees')" id="nav-employees">👥 従業員管理</div>
-      <div class="sidebar-item" onclick="showSection('attendance')" id="nav-attendance">📋 勤怠一覧</div>
-      <div class="sidebar-item" onclick="showSection('leave')" id="nav-leave">🏖️ 有給申請</div>
-      <div class="sidebar-item" onclick="showSection('trip')" id="nav-trip">✈️ 出張申請</div>
-      <div class="sidebar-item" onclick="showSection('shifts')" id="nav-shifts">📅 シフト管理</div>
-      <div class="sidebar-item" onclick="showSection('reports')" id="nav-reports">📝 日報閲覧</div>
-      <div class="sidebar-item" onclick="showSection('sales')" id="nav-sales">💼 営業報告</div>
-      <div class="sidebar-item" onclick="showSection('overtime')" id="nav-overtime">⏰ 残業申請</div>
-      <div class="sidebar-item" onclick="showSection('corrections')" id="nav-corrections">✏️ 打刻修正申請 <span id="correction-badge" style="display:none;background:var(--danger);color:white;border-radius:20px;padding:1px 7px;font-size:0.72rem;margin-left:4px">0</span></div>
-      <div class="sidebar-item" onclick="showSection('settings')" id="nav-settings">⚙️ 設定</div>
+      <div class="sidebar-section">メイン</div>
+      <div class="sidebar-item active" onclick="showSection('dashboard')" id="nav-dashboard">
+        <svg class="icon" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>
+        ダッシュボード
+      </div>
+      <div class="sidebar-item" onclick="showSection('employees')" id="nav-employees">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        従業員管理
+      </div>
+      <div class="sidebar-item" onclick="showSection('attendance')" id="nav-attendance">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="15" y2="17"/></svg>
+        勤怠一覧
+      </div>
+      <div class="sidebar-item" onclick="showSection('shifts')" id="nav-shifts">
+        <svg class="icon" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        シフト管理
+      </div>
+
+      <div class="sidebar-section">申請・承認</div>
+      <div class="sidebar-item" onclick="showSection('leave')" id="nav-leave">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M2 22c1.25-1.25 2.5-2 5-2 4 0 5 4 9 4 2.5 0 3.75-.75 5-2"/><path d="M2 13c1.25-1.25 2.5-2 5-2 4 0 5 4 9 4 2.5 0 3.75-.75 5-2"/><path d="M14 2a4 4 0 0 0-4 4c0 2 1 3 2 4l2 1 2-1c1-1 2-2 2-4a4 4 0 0 0-4-4z"/></svg>
+        有給申請
+      </div>
+      <div class="sidebar-item" onclick="showSection('trip')" id="nav-trip">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/></svg>
+        出張申請
+      </div>
+      <div class="sidebar-item" onclick="showSection('overtime')" id="nav-overtime">
+        <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        残業申請
+      </div>
+      <div class="sidebar-item" onclick="showSection('corrections')" id="nav-corrections">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+        打刻修正申請
+        <span id="correction-badge" style="display:none;background:var(--danger);color:white;border-radius:999px;padding:1px 7px;font-size:0.7rem;margin-left:auto;font-weight:700">0</span>
+      </div>
+
+      <div class="sidebar-section">日報・営業</div>
+      <div class="sidebar-item" onclick="showSection('reports')" id="nav-reports">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+        日報閲覧
+      </div>
+      <div class="sidebar-item" onclick="showSection('sales')" id="nav-sales">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+        営業報告
+      </div>
+
+      <div class="sidebar-section">システム</div>
+      <div class="sidebar-item" onclick="showSection('settings')" id="nav-settings">
+        <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        設定
+      </div>
     </div>
 
     <!-- メインコンテンツ -->
     <div class="admin-content">
 
       <!-- 打刻ウィジェット（管理者・事業部管理者用） -->
-      <div id="clock-widget" class="hidden" style="background:var(--primary);color:white;border-radius:12px;padding:14px 20px;margin-bottom:20px;display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+      <div id="clock-widget" class="hidden" style="background:linear-gradient(135deg,#1E3A8A,#2563EB);color:white;border-radius:12px;padding:16px 22px;margin-bottom:20px;display:flex;align-items:center;gap:18px;flex-wrap:wrap;box-shadow:0 8px 24px -8px rgba(37,99,235,.45)">
         <div>
-          <div style="font-size:1.4rem;font-weight:800;letter-spacing:2px" id="w-time">--:--:--</div>
-          <div style="font-size:0.78rem;opacity:.8" id="w-status">読み込み中...</div>
+          <div style="font-size:1.5rem;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:-0.01em" id="w-time">--:--:--</div>
+          <div style="font-size:0.78rem;opacity:.85;margin-top:2px" id="w-status">読み込み中...</div>
         </div>
         <div style="display:flex;gap:8px;align-items:center;flex:1;min-width:200px">
           <label style="display:inline-flex;align-items:center;gap:6px;font-size:0.8rem;opacity:.85;cursor:pointer">
@@ -56,7 +107,7 @@
 
       <!-- ダッシュボード -->
       <div id="section-dashboard">
-        <h2 style="font-size:1.2rem;font-weight:800;color:var(--primary);margin-bottom:20px">ダッシュボード</h2>
+        <h2 style="font-size:1.3rem;font-weight:700;color:var(--ink);letter-spacing:-0.015em;margin-bottom:20px">ダッシュボード</h2>
         <!-- 打刻漏れアラート -->
         <div id="punch-alerts-area" style="margin-bottom:16px"></div>
         <div class="stats-grid" id="stats-grid"></div>
@@ -74,7 +125,7 @@
       <!-- 従業員管理 -->
       <div id="section-employees" class="hidden">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
-          <h2 style="font-size:1.2rem;font-weight:800;color:var(--primary)">従業員管理</h2>
+          <h2 style="font-size:1.3rem;font-weight:700;color:var(--ink);letter-spacing:-0.015em">従業員管理</h2>
           <button class="btn-primary" style="width:auto;padding:10px 20px" onclick="openEmpModal()">＋ 新規登録</button>
         </div>
         <div class="card">
@@ -90,7 +141,7 @@
       <!-- 勤怠一覧 -->
       <div id="section-attendance" class="hidden">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:12px">
-          <h2 style="font-size:1.2rem;font-weight:800;color:var(--primary)">勤怠管理</h2>
+          <h2 style="font-size:1.3rem;font-weight:700;color:var(--ink);letter-spacing:-0.015em">勤怠管理</h2>
           <div style="display:flex;border:1px solid var(--border);border-radius:8px;overflow:hidden">
             <button id="att-tab-list" onclick="showAttView('list')" style="padding:8px 18px;border:none;background:var(--primary);color:white;cursor:pointer;font-weight:700;font-size:0.85rem">📋 全員一覧</button>
             <button id="att-tab-individual" onclick="showAttView('individual')" style="padding:8px 18px;border:none;background:white;color:var(--text-muted);cursor:pointer;font-weight:700;font-size:0.85rem">👤 個人別</button>
@@ -152,7 +203,7 @@
       <!-- 有給申請 -->
       <div id="section-leave" class="hidden">
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap">
-          <h2 style="font-size:1.2rem;font-weight:800;color:var(--primary);margin:0">有給申請管理</h2>
+          <h2 style="font-size:1.3rem;font-weight:700;color:var(--ink);letter-spacing:-0.015em;margin:0">有給申請管理</h2>
           <button class="btn-outline btn-sm" onclick="translateAll(document.getElementById('leave-list'))" style="border-color:#3B82F6;color:#1E40AF;font-size:0.78rem">🌐 理由を一括翻訳</button>
         </div>
         <div class="card">
@@ -167,7 +218,7 @@
       <!-- 出張申請 -->
       <div id="section-trip" class="hidden">
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap">
-          <h2 style="font-size:1.2rem;font-weight:800;color:var(--primary);margin:0">出張申請管理</h2>
+          <h2 style="font-size:1.3rem;font-weight:700;color:var(--ink);letter-spacing:-0.015em;margin:0">出張申請管理</h2>
           <button class="btn-outline btn-sm" onclick="translateAll(document.getElementById('trip-list'))" style="border-color:#3B82F6;color:#1E40AF;font-size:0.78rem">🌐 行き先・理由を一括翻訳</button>
         </div>
         <div class="card">
@@ -182,7 +233,7 @@
       <!-- シフト管理 -->
       <div id="section-shifts" class="hidden">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:12px">
-          <h2 style="font-size:1.2rem;font-weight:800;color:var(--primary)">シフト管理</h2>
+          <h2 style="font-size:1.3rem;font-weight:700;color:var(--ink);letter-spacing:-0.015em">シフト管理</h2>
           <div class="tabs" style="margin-bottom:0;border-bottom:none">
             <button class="tab-btn active" onclick="showShiftTab('monthly')" id="stab-monthly">月別表</button>
             <button class="tab-btn" onclick="showShiftTab('annual')" id="stab-annual">年間カレンダー</button>
@@ -298,7 +349,7 @@
 
       <!-- 日報閲覧 -->
       <div id="section-reports" class="hidden">
-        <h2 style="font-size:1.2rem;font-weight:800;color:var(--primary);margin-bottom:20px">日報閲覧</h2>
+        <h2 style="font-size:1.3rem;font-weight:700;color:var(--ink);letter-spacing:-0.015em;margin-bottom:20px">日報閲覧</h2>
         <div class="card" style="margin-bottom:16px">
           <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end">
             <div class="form-group" style="margin:0;flex:1;min-width:100px">
@@ -346,7 +397,7 @@
       <!-- 残業申請 -->
       <div id="section-overtime" class="hidden">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:12px">
-          <h2 style="font-size:1.2rem;font-weight:800;color:var(--primary)">残業申請管理</h2>
+          <h2 style="font-size:1.3rem;font-weight:700;color:var(--ink);letter-spacing:-0.015em">残業申請管理</h2>
           <button class="btn-primary" style="width:auto;padding:10px 20px" onclick="openOvertimeSubmitModal()">＋ 残業申請（部下）</button>
         </div>
         <div class="card" style="margin-bottom:16px">
@@ -380,7 +431,7 @@
       <!-- 営業報告 -->
       <div id="section-sales" class="hidden">
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap">
-          <h2 style="font-size:1.2rem;font-weight:800;color:var(--primary);margin:0">営業報告</h2>
+          <h2 style="font-size:1.3rem;font-weight:700;color:var(--ink);letter-spacing:-0.015em;margin:0">営業報告</h2>
           <button class="btn-outline btn-sm" onclick="translateAll(document.getElementById('sale-adm-body'))" style="border-color:#3B82F6;color:#1E40AF;font-size:0.78rem">🌐 目的・内容を一括翻訳</button>
         </div>
         <div class="card" style="margin-bottom:16px">
@@ -428,7 +479,7 @@
       <!-- 打刻修正申請 -->
       <div id="section-corrections" class="hidden">
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap">
-          <h2 style="font-size:1.2rem;font-weight:800;color:var(--primary);margin:0">✏️ 打刻修正申請</h2>
+          <h2 style="font-size:1.3rem;font-weight:700;color:var(--ink);letter-spacing:-0.015em;margin:0">✏️ 打刻修正申請</h2>
           <button class="btn-outline btn-sm" onclick="translateAll(document.getElementById('corrections-list'))" style="border-color:#3B82F6;color:#1E40AF;font-size:0.78rem">🌐 理由を一括翻訳</button>
         </div>
         <div class="card" style="margin-bottom:12px">
@@ -442,7 +493,7 @@
 
       <!-- 設定 -->
       <div id="section-settings" class="hidden">
-        <h2 style="font-size:1.2rem;font-weight:800;color:var(--primary);margin-bottom:20px">システム設定</h2>
+        <h2 style="font-size:1.3rem;font-weight:700;color:var(--ink);letter-spacing:-0.015em;margin-bottom:20px">システム設定</h2>
         <div class="card" style="margin-bottom:16px">
           <div class="card-title">🏢 会社・GPS設定</div>
           <div class="form-group"><label>会社名</label><input type="text" id="set-company-name"></div>
@@ -636,7 +687,7 @@
   </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-  <script src="/static/translate.js?v=1"></script>
-  <script src="/static/admin.js?v=9"></script>
+  <script src="/static/translate.js?v=2"></script>
+  <script src="/static/admin.js?v=10"></script>
 </body>
 </html>
