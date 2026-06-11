@@ -46,7 +46,7 @@
       <div style="margin-top:16px;margin-bottom:8px">
         <label style="display:inline-flex;align-items:center;gap:8px;cursor:pointer;font-size:0.85rem;opacity:.85">
           <input type="checkbox" id="toggle-trip" onchange="updateTripMode()" style="width:16px;height:16px;cursor:pointer">
-          <span data-i18n="trip_mode">✈️ 出張中（GPS制限を解除）</span>
+          <span data-i18n="trip_mode">出張中（GPS制限を解除）</span>
         </label>
       </div>
       <div class="clock-buttons">
@@ -55,8 +55,8 @@
       </div>
       <!-- 外出・帰社ボタン -->
       <div id="external-buttons" style="display:none;margin-top:12px;display:flex;gap:8px;justify-content:center">
-        <button id="btn-go-out" onclick="goOut()" style="padding:10px 20px;border-radius:8px;border:2px solid #F59E0B;background:white;color:#D97706;font-weight:700;cursor:pointer;font-size:0.88rem" disabled data-i18n="btn_go_out">🚗 外出</button>
-        <button id="btn-return" onclick="returnFromOut()" style="padding:10px 20px;border-radius:8px;border:2px solid #10B981;background:white;color:#059669;font-weight:700;cursor:pointer;font-size:0.88rem;display:none" data-i18n="btn_return">🏢 帰社</button>
+        <button id="btn-go-out" onclick="goOut()" style="padding:10px 20px;border-radius:8px;border:2px solid #F59E0B;background:white;color:#D97706;font-weight:700;cursor:pointer;font-size:0.88rem" disabled data-i18n="btn_go_out">外出</button>
+        <button id="btn-return" onclick="returnFromOut()" style="padding:10px 20px;border-radius:8px;border:2px solid #10B981;background:white;color:#059669;font-weight:700;cursor:pointer;font-size:0.88rem;display:none" data-i18n="btn_return">帰社</button>
       </div>
       <!-- 外出履歴（本日） -->
       <div id="external-log" style="margin-top:10px;font-size:0.78rem;color:rgba(255,255,255,.8)"></div>
@@ -64,13 +64,13 @@
 
     <!-- GPS警告 -->
     <div id="gps-warning" class="card hidden" style="border-left:4px solid var(--warning);margin-bottom:12px">
-      <div style="color:var(--warning);font-weight:600;margin-bottom:4px" data-i18n="gps_getting">📍 GPS取得中...</div>
+      <div style="color:var(--warning);font-weight:600;margin-bottom:4px" data-i18n="gps_getting">GPS取得中...</div>
       <div style="font-size:0.82rem;color:var(--text-muted)" data-i18n="gps_allow">位置情報を許可してください</div>
     </div>
 
     <!-- 本日の勤務情報 -->
     <div class="card" style="margin-bottom:12px">
-      <div class="card-title" data-i18n="card_today">📊 本日の勤務</div>
+      <div class="card-title" data-i18n="card_today">本日の勤務</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
         <div style="background:#F8FAFC;border-radius:8px;padding:12px;text-align:center">
           <div style="font-size:0.75rem;color:var(--text-muted)" data-i18n="label_clock_in_time">出勤時刻</div>
@@ -117,7 +117,7 @@
             <select id="shift-emp-month" style="width:auto"></select>
             <button class="btn-outline btn-sm" onclick="loadShiftTable()" data-i18n="btn_show">表示</button>
           </div>
-          <button class="btn-outline btn-sm" onclick="exportShiftExcel()" style="margin-left:auto;border-color:var(--accent);color:var(--accent)" data-i18n="btn_excel">📥 Excel出力</button>
+          <button class="btn-outline btn-sm" onclick="exportShiftExcel()" style="margin-left:auto" data-i18n="btn_excel">Excel出力</button>
         </div>
         <div id="shift-status" style="text-align:center;color:var(--text-muted);padding:20px;font-size:0.88rem"></div>
         <div style="overflow-x:auto">
@@ -208,7 +208,7 @@
           打刻の修正が必要な場合はこちらから申請してください。管理者が確認・承認します。
         </div>
         <div class="card" style="margin-bottom:16px">
-          <div class="card-title" data-i18n="corr_title">📝 新規申請</div>
+          <div class="card-title" data-i18n="corr_title">新規申請</div>
           <div class="form-group"><label data-i18n="corr_date">対象日</label><input type="date" id="corr-date"></div>
           <div style="display:flex;gap:12px;margin-bottom:12px">
             <div class="form-group" style="margin:0;flex:1"><label data-i18n="corr_in">修正後 出勤時刻</label><input type="time" id="corr-in"></div>
@@ -304,8 +304,8 @@
   </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-  <script src="/static/i18n.js?v=5"></script>
-  <script src="/static/employee.js?v=13"></script>
+  <script src="/static/i18n.js?v=6"></script>
+  <script src="/static/employee.js?v=14"></script>
   <script>
     // 言語切替UIのアクティブ状態を更新
     (function patchLang(){

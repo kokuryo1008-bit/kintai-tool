@@ -98,7 +98,7 @@
         <div style="display:flex;gap:8px;align-items:center;flex:1;min-width:200px">
           <label style="display:inline-flex;align-items:center;gap:6px;font-size:0.8rem;opacity:.85;cursor:pointer">
             <input type="checkbox" id="w-toggle-trip" onchange="wUpdateTripMode()" style="cursor:pointer">
-            ✈️ 出張中
+            出張中
           </label>
           <button class="btn-clock btn-clock-in" id="w-btn-in" onclick="wClockIn()" disabled style="padding:10px 18px;font-size:0.88rem;border-radius:8px">出勤</button>
           <button class="btn-clock btn-clock-out" id="w-btn-out" onclick="wClockOut()" disabled style="padding:10px 18px;font-size:0.88rem;border-radius:8px">退勤</button>
@@ -112,7 +112,7 @@
         <div id="punch-alerts-area" style="margin-bottom:16px"></div>
         <div class="stats-grid" id="stats-grid"></div>
         <div class="card">
-          <div class="card-title">📋 本日の出勤状況</div>
+          <div class="card-title">本日の出勤状況</div>
           <div class="table-wrap">
             <table>
               <thead><tr><th>氏名</th><th>部署</th><th>出勤</th><th>退勤</th><th>状態</th><th>外出</th></tr></thead>
@@ -143,8 +143,8 @@
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:12px">
           <h2 style="font-size:1.3rem;font-weight:700;color:var(--ink);letter-spacing:-0.015em">勤怠管理</h2>
           <div style="display:flex;border:1px solid var(--border);border-radius:8px;overflow:hidden">
-            <button id="att-tab-list" onclick="showAttView('list')" style="padding:8px 18px;border:none;background:var(--primary);color:white;cursor:pointer;font-weight:700;font-size:0.85rem">📋 全員一覧</button>
-            <button id="att-tab-individual" onclick="showAttView('individual')" style="padding:8px 18px;border:none;background:white;color:var(--text-muted);cursor:pointer;font-weight:700;font-size:0.85rem">👤 個人別</button>
+            <button id="att-tab-list" onclick="showAttView('list')" style="padding:8px 18px;border:none;background:var(--primary);color:white;cursor:pointer;font-weight:700;font-size:0.85rem">全員一覧</button>
+            <button id="att-tab-individual" onclick="showAttView('individual')" style="padding:8px 18px;border:none;background:white;color:var(--text-muted);cursor:pointer;font-weight:700;font-size:0.85rem">個人別</button>
           </div>
         </div>
 
@@ -165,7 +165,7 @@
               <div style="margin-left:auto;display:flex;gap:6px;flex-wrap:wrap">
                 <button class="btn-outline btn-sm" onclick="exportCSV()">日別CSV</button>
                 <button class="btn-outline btn-sm" onclick="exportMonthlySummaryCSV()" style="border-color:var(--primary);color:var(--primary)">月集計CSV</button>
-                <button class="btn-outline btn-sm" onclick="exportIndividualExcel(this)" style="border-color:#7C3AED;color:#7C3AED">📥 個人別Excel</button>
+                <button class="btn-outline btn-sm" onclick="exportIndividualExcel(this)">個人別Excel</button>
               </div>
             </div>
           </div>
@@ -185,14 +185,14 @@
 
             <!-- 従業員リスト -->
             <div>
-              <input type="text" id="emp-search" placeholder="🔍 名前で絞り込み" oninput="filterEmpCards()" style="width:100%;margin-bottom:10px;border-radius:8px;border:1px solid var(--border);padding:8px 10px;font-size:0.85rem;box-sizing:border-box">
+              <input type="text" id="emp-search" placeholder="名前で検索" oninput="filterEmpCards()" style="width:100%;margin-bottom:10px;border-radius:8px;border:1px solid var(--border);padding:8px 10px;font-size:0.85rem;box-sizing:border-box">
               <div id="emp-card-list" style="display:flex;flex-direction:column;gap:6px;max-height:70vh;overflow-y:auto"></div>
             </div>
 
             <!-- 詳細パネル -->
             <div id="emp-detail-panel">
               <div style="text-align:center;padding:60px 20px;color:var(--text-muted)">
-                <div style="font-size:2.5rem;margin-bottom:12px">👤</div>
+                <svg viewBox="0 0 24 24" style="width:40px;height:40px;stroke:#CBD5E1;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;margin-bottom:12px"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                 <div>左のリストから従業員を選択してください</div>
               </div>
             </div>
@@ -204,7 +204,7 @@
       <div id="section-leave" class="hidden">
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap">
           <h2 style="font-size:1.3rem;font-weight:700;color:var(--ink);letter-spacing:-0.015em;margin:0">有給申請管理</h2>
-          <button class="btn-outline btn-sm" onclick="translateAll(document.getElementById('leave-list'))" style="border-color:#3B82F6;color:#1E40AF;font-size:0.78rem">🌐 理由を一括翻訳</button>
+          <button class="btn-outline btn-sm" onclick="translateAll(document.getElementById('leave-list'))" style="font-size:0.78rem">理由を一括翻訳</button>
         </div>
         <div class="card">
           <div style="display:flex;gap:8px;margin-bottom:16px">
@@ -219,7 +219,7 @@
       <div id="section-trip" class="hidden">
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap">
           <h2 style="font-size:1.3rem;font-weight:700;color:var(--ink);letter-spacing:-0.015em;margin:0">出張申請管理</h2>
-          <button class="btn-outline btn-sm" onclick="translateAll(document.getElementById('trip-list'))" style="border-color:#3B82F6;color:#1E40AF;font-size:0.78rem">🌐 行き先・理由を一括翻訳</button>
+          <button class="btn-outline btn-sm" onclick="translateAll(document.getElementById('trip-list'))" style="font-size:0.78rem">行き先・理由を一括翻訳</button>
         </div>
         <div class="card">
           <div style="display:flex;gap:8px;margin-bottom:16px">
@@ -254,7 +254,7 @@
 
         <!-- 定休日設定 -->
         <div class="card" style="margin-bottom:12px">
-          <div class="card-title">🏖️ 定休日設定</div>
+          <div class="card-title">定休日設定</div>
           <div id="holiday-dept-group" style="margin-bottom:12px">
             <label style="display:block;font-size:0.82rem;font-weight:600;color:var(--text-muted);margin-bottom:6px">部署</label>
             <select id="holiday-dept-sel" style="width:auto" onchange="loadHolidayCheckboxes()"></select>
@@ -281,11 +281,11 @@
             <select id="shift-month" style="width:auto"></select>
             <select id="shift-dept-filter" style="width:auto"><option value="">全部署</option></select>
             <button class="btn-outline btn-sm" onclick="loadShifts()">表示</button>
-            <button class="btn-outline btn-sm" onclick="exportAdminShiftExcel()" style="border-color:var(--accent);color:var(--accent)">📥 Excel出力</button>
-            <button class="btn-primary" style="width:auto;padding:8px 18px;font-size:0.85rem;margin-left:auto" onclick="openBulkModal()">📅 一括登録</button>
+            <button class="btn-outline btn-sm" onclick="exportAdminShiftExcel()">Excel出力</button>
+            <button class="btn-primary" style="width:auto;padding:8px 18px;font-size:0.85rem;margin-left:auto" onclick="openBulkModal()">一括登録</button>
           </div>
           <div class="card">
-            <div class="card-title">📋 シフト表</div>
+            <div class="card-title">シフト表</div>
             <div style="overflow-x:auto">
               <table id="shift-table" style="min-width:600px">
                 <thead id="shift-thead"></thead>
@@ -307,18 +307,18 @@
               <select id="annual-dept" style="width:auto"><option value="">全部署</option></select>
             </div>
             <button class="btn-outline btn-sm" onclick="loadAnnualCalendar()">表示</button>
-            <button class="btn-outline btn-sm" onclick="openMandatoryModal()" style="border-color:var(--accent);color:var(--accent)">📋 年5日有給登録</button>
-            <button class="btn-outline btn-sm" onclick="exportAnnualExcel()" style="border-color:#7C3AED;color:#7C3AED">📥 Excel出力</button>
+            <button class="btn-outline btn-sm" onclick="openMandatoryModal()">年5日有給登録</button>
+            <button class="btn-outline btn-sm" onclick="exportAnnualExcel()">Excel出力</button>
           </div>
 
           <!-- 祝日・休日管理 -->
           <div class="card" style="margin-bottom:12px">
-            <div class="card-title">🎌 祝日・休日管理</div>
+            <div class="card-title">祝日・休日管理</div>
             <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin-bottom:12px">
               <div class="form-group" style="margin:0"><label>日付</label><input type="date" id="nhol-date" style="width:auto"></div>
               <div class="form-group" style="margin:0;flex:1;min-width:120px"><label>名称</label><input type="text" id="nhol-name" placeholder="例: 元日"></div>
               <button class="btn-outline btn-sm" onclick="addNationalHoliday()">追加</button>
-              <button class="btn-primary" style="width:auto;padding:8px 16px;font-size:0.84rem" onclick="importJpHolidays()">🇯🇵 国民の祝日を自動インポート</button>
+              <button class="btn-primary" style="width:auto;padding:8px 16px;font-size:0.84rem" onclick="importJpHolidays()">国民の祝日を自動インポート</button>
             </div>
             <div id="nhol-list" style="display:flex;gap:6px;flex-wrap:wrap;max-height:100px;overflow-y:auto"></div>
           </div>
@@ -339,7 +339,7 @@
 
           <!-- 操作ヒント -->
           <div style="background:#EFF6FF;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:0.82rem;color:var(--primary)">
-            💡 カレンダーの日付をクリックすると、その日のシフトを確認・追加・編集できます。部署を選択すると全従業員のシフト状況が表示されます。
+            ヒント: カレンダーの日付をクリックすると、その日のシフトを確認・追加・編集できます。部署を選択すると全従業員のシフト状況が表示されます。
           </div>
 
           <!-- 月別カレンダーグリッド -->
@@ -432,7 +432,7 @@
       <div id="section-sales" class="hidden">
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap">
           <h2 style="font-size:1.3rem;font-weight:700;color:var(--ink);letter-spacing:-0.015em;margin:0">営業報告</h2>
-          <button class="btn-outline btn-sm" onclick="translateAll(document.getElementById('sale-adm-body'))" style="border-color:#3B82F6;color:#1E40AF;font-size:0.78rem">🌐 目的・内容を一括翻訳</button>
+          <button class="btn-outline btn-sm" onclick="translateAll(document.getElementById('sale-adm-body'))" style="font-size:0.78rem">目的・内容を一括翻訳</button>
         </div>
         <div class="card" style="margin-bottom:16px">
           <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end">
@@ -479,8 +479,8 @@
       <!-- 打刻修正申請 -->
       <div id="section-corrections" class="hidden">
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap">
-          <h2 style="font-size:1.3rem;font-weight:700;color:var(--ink);letter-spacing:-0.015em;margin:0">✏️ 打刻修正申請</h2>
-          <button class="btn-outline btn-sm" onclick="translateAll(document.getElementById('corrections-list'))" style="border-color:#3B82F6;color:#1E40AF;font-size:0.78rem">🌐 理由を一括翻訳</button>
+          <h2 style="font-size:1.3rem;font-weight:700;color:var(--ink);letter-spacing:-0.015em;margin:0">打刻修正申請</h2>
+          <button class="btn-outline btn-sm" onclick="translateAll(document.getElementById('corrections-list'))" style="font-size:0.78rem">理由を一括翻訳</button>
         </div>
         <div class="card" style="margin-bottom:12px">
           <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
@@ -495,7 +495,7 @@
       <div id="section-settings" class="hidden">
         <h2 style="font-size:1.3rem;font-weight:700;color:var(--ink);letter-spacing:-0.015em;margin-bottom:20px">システム設定</h2>
         <div class="card" style="margin-bottom:16px">
-          <div class="card-title">🏢 会社・GPS設定</div>
+          <div class="card-title">会社・GPS設定</div>
           <div class="form-group"><label>会社名</label><input type="text" id="set-company-name"></div>
           <div class="form-group"><label>緯度（本社）</label><input type="number" id="set-lat" step="0.000001" placeholder="例: 34.702485"></div>
           <div class="form-group"><label>経度（本社）</label><input type="number" id="set-lon" step="0.000001" placeholder="例: 135.495951"></div>
@@ -510,7 +510,7 @@
           <button class="btn-primary" style="max-width:200px" onclick="saveWorkSettings()">保存</button>
         </div>
         <div class="card">
-          <div class="card-title">🏗️ 部署管理</div>
+          <div class="card-title">部署管理</div>
           <div style="display:flex;gap:8px;margin-bottom:12px">
             <input type="text" id="dept-name" placeholder="部署名を入力" style="flex:1">
             <button class="btn-outline" onclick="addDept()">追加</button>
@@ -524,7 +524,7 @@
   <!-- 一括シフト登録モーダル -->
   <div id="bulk-shift-modal" class="modal-overlay hidden">
     <div class="modal" style="max-width:540px">
-      <div class="modal-title">📅 一括シフト登録</div>
+      <div class="modal-title">一括シフト登録</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
         <div class="form-group" style="margin:0">
           <label>従業員</label>
@@ -557,12 +557,12 @@
   <!-- 年5日有給登録モーダル -->
   <div id="mandatory-modal" class="modal-overlay hidden">
     <div class="modal" style="max-width:760px;max-height:90vh;overflow-y:auto">
-      <div class="modal-title">📋 年5日有給取得義務 登録</div>
+      <div class="modal-title">年5日有給取得義務 登録</div>
 
       <!-- モード切替 -->
       <div style="display:flex;border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-bottom:16px">
-        <button id="ml-tab-individual" onclick="setMlMode('individual')" style="flex:1;padding:9px;border:none;cursor:pointer;font-weight:700;font-size:0.85rem;background:var(--primary);color:white">👤 個別登録</button>
-        <button id="ml-tab-bulk" onclick="setMlMode('bulk')" style="flex:1;padding:9px;border:none;cursor:pointer;font-weight:700;font-size:0.85rem;background:white;color:var(--text-muted)">👥 部署一括登録</button>
+        <button id="ml-tab-individual" onclick="setMlMode('individual')" style="flex:1;padding:9px;border:none;cursor:pointer;font-weight:700;font-size:0.85rem;background:var(--primary);color:white">個別登録</button>
+        <button id="ml-tab-bulk" onclick="setMlMode('bulk')" style="flex:1;padding:9px;border:none;cursor:pointer;font-weight:700;font-size:0.85rem;background:white;color:var(--text-muted)">部署一括登録</button>
       </div>
 
       <!-- 個別モード -->
@@ -583,7 +583,7 @@
         <div id="ml-count-badge-bulk" style="padding:8px 16px;border-radius:8px;background:#EFF6FF;font-weight:700;color:var(--primary);font-size:0.9rem;white-space:nowrap">0日 / 5日必要</div>
       </div>
       <div id="ml-bulk-warning" style="display:none;background:#FFFBEB;border:1px solid #FCD34D;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:0.82rem;color:#92400E">
-        ⚠️ 選択した部署の全従業員に同じ義務有給日を一括設定します。既存の設定は上書きされます。
+        選択した部署の全従業員に同じ義務有給日を一括設定します。既存の設定は上書きされます。
       </div>
 
       <div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:10px">クリックして義務有給日を選択（緑が選択済み）。土日も選択可。祝日のみ選択不可。</div>
@@ -598,7 +598,7 @@
   <!-- 出退勤修正モーダル -->
   <div id="att-edit-modal" class="modal-overlay hidden">
     <div class="modal" style="max-width:360px">
-      <div class="modal-title">✏️ 出退勤時間の修正</div>
+      <div class="modal-title">出退勤時間の修正</div>
       <div id="att-edit-info" style="background:#F8FAFC;border-radius:8px;padding:10px 14px;margin-bottom:18px;font-size:0.88rem"></div>
       <div class="form-group">
         <label>出勤時刻</label>
@@ -645,7 +645,7 @@
       </div>
       <!-- PIN表示（新規登録時のみ） -->
       <div id="pin-display" class="hidden" style="background:#EFF6FF;border-radius:10px;padding:14px;margin-bottom:16px">
-        <div style="font-size:0.82rem;color:var(--text-muted);margin-bottom:6px">🔑 ログインPIN（従業員に口頭で伝えてください）</div>
+        <div style="font-size:0.82rem;color:var(--text-muted);margin-bottom:6px">ログインPIN（従業員に口頭で伝えてください）</div>
         <div style="display:flex;align-items:center;gap:12px">
           <span id="pin-value" style="font-size:2rem;font-weight:800;letter-spacing:6px;color:var(--primary)"></span>
           <button class="btn-outline btn-sm" onclick="regenPin()">再生成</button>
@@ -654,7 +654,7 @@
       </div>
       <!-- PINリセット（編集時のみ） -->
       <div id="pin-reset" class="hidden" style="margin-bottom:16px">
-        <button class="btn-outline btn-sm" onclick="resetPin()" style="color:var(--warning);border-color:var(--warning)">🔄 PINを再発行する</button>
+        <button class="btn-outline btn-sm" onclick="resetPin()" style="color:var(--warning);border-color:var(--warning)">PINを再発行する</button>
         <span id="pin-reset-value" style="margin-left:12px;font-size:1.2rem;font-weight:700;letter-spacing:4px;color:var(--primary)"></span>
       </div>
       <div class="modal-footer">
@@ -688,6 +688,6 @@
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <script src="/static/translate.js?v=2"></script>
-  <script src="/static/admin.js?v=10"></script>
+  <script src="/static/admin.js?v=11"></script>
 </body>
 </html>

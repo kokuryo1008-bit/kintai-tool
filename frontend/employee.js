@@ -65,7 +65,7 @@ async function loadTodayShift() {
     const d = await res.json();
     const el = document.getElementById('today-shift');
     if (d.start_time) {
-      el.textContent = `📅 本日のシフト: ${d.start_time.slice(0,5)} 〜 ${d.end_time.slice(0,5)}`;
+      el.textContent = `本日のシフト: ${d.start_time.slice(0,5)} 〜 ${d.end_time.slice(0,5)}`;
     } else {
       el.textContent = '';
     }
@@ -148,7 +148,7 @@ function updateExternalUI(currentlyOut, records) {
 
   if (records.length) {
     log.innerHTML = records.map(r =>
-      `🚗 ${r.out_time.slice(0,5)}${r.in_time ? ' → 🏢 ' + r.in_time.slice(0,5) : ' （外出中）'}${r.note ? ' ' + r.note : ''}`
+      `外出 ${r.out_time.slice(0,5)}${r.in_time ? ' → 帰社 ' + r.in_time.slice(0,5) : ' （外出中）'}${r.note ? ' ' + r.note : ''}`
     ).join('　');
   }
 }
@@ -477,7 +477,7 @@ function renderWeeklyShiftTable(shifts, dates) {
     const isMe = empId === myEmployeeId;
     const rowBg = isMe ? '#EFF6FF' : '';
     bodyHtml += `<tr style="background:${rowBg}">`;
-    bodyHtml += `<td style="position:sticky;left:0;background:${isMe ? '#EFF6FF' : '#F8FAFC'};z-index:1;white-space:nowrap;padding:6px 10px;border:1px solid #E2E8F0;font-weight:${isMe ? '700' : '400'}">${emp.name}${isMe ? ' 👤' : ''}</td>`;
+    bodyHtml += `<td style="position:sticky;left:0;background:${isMe ? '#EFF6FF' : '#F8FAFC'};z-index:1;white-space:nowrap;padding:6px 10px;border:1px solid #E2E8F0;font-weight:${isMe ? '700' : '400'}">${emp.name}</td>`;
     dateStrs.forEach(ds => {
       const shift = emp.dates[ds];
       const dow   = new Date(ds).getDay();
@@ -585,7 +585,7 @@ function renderShiftTable(shifts, year, month) {
     const isMe = empId === myEmployeeId;
     const rowBg = isMe ? 'background:#EFF6FF' : '';
     bodyHtml += `<tr style="${rowBg}">`;
-    bodyHtml += `<td style="position:sticky;left:0;background:${isMe ? '#EFF6FF' : '#F8FAFC'};z-index:1;white-space:nowrap;padding:6px 10px;border:1px solid #E2E8F0;font-weight:${isMe ? '700' : '400'}">${emp.name}${isMe ? ' 👤' : ''}</td>`;
+    bodyHtml += `<td style="position:sticky;left:0;background:${isMe ? '#EFF6FF' : '#F8FAFC'};z-index:1;white-space:nowrap;padding:6px 10px;border:1px solid #E2E8F0;font-weight:${isMe ? '700' : '400'}">${emp.name}</td>`;
     for (let d = 1; d <= daysInMonth; d++) {
       const dateStr = `${year}-${String(month).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
       const shift = emp.dates[dateStr];
@@ -843,9 +843,9 @@ function renderSales() {
       <div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:4px">${r.report_date}${r.purpose ? ' ｜ ' + r.purpose : ''}</div>
       ${r.content ? `<div style="font-size:0.85rem;margin-bottom:6px;white-space:pre-wrap">${r.content}</div>` : ''}
       <div style="display:flex;gap:16px;font-size:0.8rem;flex-wrap:wrap">
-        ${r.amount ? `<span>💰 ${Number(r.amount).toLocaleString()}円</span>` : ''}
-        ${r.next_action ? `<span>📌 ${r.next_action}</span>` : ''}
-        ${r.next_date ? `<span>📅 ${r.next_date}</span>` : ''}
+        ${r.amount ? `<span>${Number(r.amount).toLocaleString()}円</span>` : ''}
+        ${r.next_action ? `<span>次回: ${r.next_action}</span>` : ''}
+        ${r.next_date ? `<span>${r.next_date}</span>` : ''}
       </div>
       <div style="margin-top:8px;display:flex;gap:6px">
         <button class="btn-outline btn-sm" onclick="openSalesModal(${r.id})">編集</button>

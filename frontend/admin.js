@@ -110,7 +110,7 @@ async function loadDashboard() {
         ? '<span class="badge badge-gray">退勤済</span>'
         : r.clock_in
           ? currentlyOut
-            ? '<span style="background:#FEF3C7;color:#D97706;padding:2px 8px;border-radius:12px;font-size:0.78rem;font-weight:700">🚗 外出中</span>'
+            ? '<span style="background:#FEF3C7;color:#D97706;padding:2px 8px;border-radius:12px;font-size:0.78rem;font-weight:700">外出中</span>'
             : '<span class="badge badge-green">出勤中</span>'
           : '<span class="badge badge-red">未出勤</span>';
       const extLog = extRecs.length
@@ -140,13 +140,13 @@ function renderPunchAlerts(alerts) {
   let html = '';
   if (mi.length) {
     html += `<div style="background:#FEF2F2;border:1px solid #FCA5A5;border-radius:12px;padding:14px 18px;margin-bottom:10px">
-      <div style="font-weight:700;color:#DC2626;margin-bottom:8px">🔴 出勤打刻漏れ（${mi.length}名）</div>
+      <div style="font-weight:700;color:#DC2626;margin-bottom:8px"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#DC2626;margin-right:6px"></span>出勤打刻漏れ（${mi.length}名）</div>
       ${mi.map(r => `<div style="font-size:0.85rem;padding:4px 0;border-bottom:1px solid #FEE2E2"><strong>${r.name}</strong> <span style="color:#6B7280">${r.department}</span> — 定時 ${r.expected} を30分以上過ぎています</div>`).join('')}
     </div>`;
   }
   if (mo.length) {
     html += `<div style="background:#FFFBEB;border:1px solid #FCD34D;border-radius:12px;padding:14px 18px">
-      <div style="font-weight:700;color:#D97706;margin-bottom:8px">🟡 退勤打刻漏れ（${mo.length}名）</div>
+      <div style="font-weight:700;color:#D97706;margin-bottom:8px"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#D97706;margin-right:6px"></span>退勤打刻漏れ（${mo.length}名）</div>
       ${mo.map(r => `<div style="font-size:0.85rem;padding:4px 0;border-bottom:1px solid #FEF3C7"><strong>${r.name}</strong> <span style="color:#6B7280">${r.department}</span> — 出勤 ${r.clock_in} から10時間以上経過</div>`).join('')}
     </div>`;
   }
@@ -525,7 +525,7 @@ function renderEmpDetail(data, year, month) {
         ${(() => {
           const otH = data.total_overtime_minutes / 60;
           const c = otH >= 80 ? 'var(--danger)' : otH >= 45 ? 'var(--warning)' : 'var(--warning)';
-          const w = otH >= 80 ? '<div style="font-size:0.7rem;color:var(--danger)">⚠️ 過労注意</div>' : otH >= 45 ? '<div style="font-size:0.7rem;color:var(--warning)">⚠️ 要注意</div>' : '';
+          const w = otH >= 80 ? '<div style="font-size:0.7rem;color:var(--danger)">過労注意</div>' : otH >= 45 ? '<div style="font-size:0.7rem;color:var(--warning)">要注意</div>' : '';
           return `<div style="font-size:1.8rem;font-weight:800;color:${c}">${fmtMin(data.total_overtime_minutes)}</div>${w}`;
         })()}
       </div>
@@ -675,7 +675,7 @@ async function exportIndividualExcel(btn) {
 
   if (!year || !month) { alert('先に年月を選択してください'); return; }
 
-  const origText = btn?.textContent || '📥 個人別Excel';
+  const origText = btn?.textContent || '個人別Excel';
   if (btn) { btn.disabled = true; btn.textContent = '⏳ 作成中...'; }
 
   try {
@@ -1268,7 +1268,7 @@ function openShiftEdit(empId, empName, shiftDate, startTime, endTime, shiftId) {
   overlay.className = 'modal-overlay';
   overlay.innerHTML = `
     <div class="modal" style="max-width:360px">
-      <div class="modal-title">📅 シフト設定</div>
+      <div class="modal-title">シフト設定</div>
       <div style="font-weight:600;margin-bottom:16px">${empName} / ${dispDate}</div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">
         ${shiftTemplates.map(t => `
@@ -1329,10 +1329,10 @@ async function wLoadTodayStatus() {
       status.textContent = '未出勤';
       btnIn.disabled = false; btnOut.disabled = true;
     } else if (!d.clock_out) {
-      status.textContent = `出勤中 🟢  ${d.clock_in.slice(0,5)}〜`;
+      status.textContent = `出勤中  ${d.clock_in.slice(0,5)}〜`;
       btnIn.disabled = true; btnOut.disabled = false;
     } else {
-      status.textContent = `退勤済 ✅  ${d.clock_in.slice(0,5)}〜${d.clock_out.slice(0,5)}`;
+      status.textContent = `退勤済  ${d.clock_in.slice(0,5)}〜${d.clock_out.slice(0,5)}`;
       btnIn.disabled = true; btnOut.disabled = true;
     }
   } catch(e) {}
@@ -1814,7 +1814,7 @@ function openDayPanel(dateStr) {
 
   overlay.innerHTML = `
     <div class="modal" style="max-width:420px;max-height:80vh;overflow-y:auto">
-      <div class="modal-title">📅 ${dispDate}</div>
+      <div class="modal-title">${dispDate}</div>
       ${dayShifts.length ? `<div style="margin-bottom:12px;font-size:0.83rem;color:var(--text-muted)">${dayShifts.length}名登録済み</div>` : ''}
       ${rows}
       <div class="modal-footer"><button class="btn-outline" onclick="document.getElementById('day-panel-overlay').remove()">閉じる</button></div>
